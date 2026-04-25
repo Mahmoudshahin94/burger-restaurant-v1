@@ -43,8 +43,8 @@ export default function AdminLoginPage() {
       >
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="relative w-20 h-20 mx-auto mb-4 rounded-2xl overflow-hidden bg-white/10 border border-white/20 shadow-xl">
-            <Image src="/logo.png" alt="B99 Coffee" fill className="object-contain p-1.5" />
+          <div className="relative w-32 h-32 mx-auto mb-4 rounded-2xl overflow-hidden bg-white/10 border border-white/20 shadow-xl">
+            <Image src="/logo.png" alt="JudyTech" fill className="object-contain p-2" sizes="128px" priority />
           </div>
           <h1 className="text-2xl font-bold text-white tracking-tight">Admin Panel</h1>
           <p className="text-white/50 text-sm mt-1">Sign in to manage your menu</p>
@@ -139,7 +139,7 @@ export default function AdminLoginPage() {
           </form>
         </div>
 
-        <p className="text-center text-white/25 text-xs mt-5">B99 Coffee — Admin Panel</p>
+        <p className="text-center text-white/25 text-xs mt-5">Judy Tech — Admin Panel</p>
       </motion.div>
     </div>
   );

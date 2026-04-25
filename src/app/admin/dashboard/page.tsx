@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { db } from "@/lib/db";
 import SeedButton from "@/components/admin/SeedButton";
@@ -88,9 +89,13 @@ export default function DashboardPage() {
         <div className="relative overflow-hidden bg-gradient-to-br from-brand-espresso via-brand-espresso to-brand-red rounded-2xl p-6 text-white">
           <div className="absolute top-0 right-0 w-64 h-64 rounded-full bg-white/5 -translate-y-1/2 translate-x-1/4 pointer-events-none" />
           <div className="absolute bottom-0 left-24 w-32 h-32 rounded-full bg-primary/20 translate-y-1/2 pointer-events-none" />
-          <div className="relative">
+          <div className="relative flex flex-col sm:flex-row sm:items-center gap-5">
+            <div className="relative w-24 h-24 sm:w-28 sm:h-28 flex-shrink-0 rounded-2xl overflow-hidden bg-white/15 border border-white/25 shadow-lg">
+              <Image src="/logo.png" alt="JudyTech" fill className="object-contain p-2" sizes="112px" />
+            </div>
+            <div className="min-w-0 flex-1">
             <h2 className="text-xl font-bold mb-1">Welcome back! 👋</h2>
-            <p className="text-white/70 text-sm">B99 Coffee Admin — manage your digital menu here.</p>
+            <p className="text-white/70 text-sm">Judy Tech Admin — manage your digital menu here.</p>
             <div className="mt-4 flex flex-wrap gap-2.5">
               <Link
                 href="/"
@@ -105,6 +110,7 @@ export default function DashboardPage() {
               >
                 📱 Get QR Code
               </Link>
+            </div>
             </div>
           </div>
         </div>
@@ -166,9 +172,9 @@ export default function DashboardPage() {
             <div className="flex items-start gap-3">
               <span className="text-2xl">🌱</span>
               <div className="flex-1">
-                <h3 className="font-semibold text-amber-800 mb-1">Load B99 Menu Data</h3>
+                <h3 className="font-semibold text-amber-800 mb-1">Load sample menu data</h3>
                 <p className="text-amber-700 text-sm mb-4">
-                  Your database is empty. Click below to pre-populate it with all B99 Coffee menu items.
+                  Your database is empty. Click below to pre-populate it with starter categories and menu items.
                 </p>
                 <SeedButton />
               </div>

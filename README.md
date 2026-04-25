@@ -39,7 +39,7 @@ Copy `.env.local` and fill in your values:
 
 ```env
 # InstantDB
-NEXT_PUBLIC_INSTANTDB_APP_ID=254b5091-5192-46ff-b314-ae031e8e0607
+NEXT_PUBLIC_INSTANTDB_APP_ID=4a86cbee-44d0-49db-b911-09c3a6985bf4
 
 # NextAuth
 NEXTAUTH_SECRET=your-secret-here   # run: openssl rand -base64 32

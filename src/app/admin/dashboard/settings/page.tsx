@@ -83,7 +83,7 @@ export default function SettingsPage() {
                 Logo URL
               </label>
               <p className="text-xs text-gray-400 mb-3">
-                Paste a URL to your logo image. Leave empty to use the default B99 logo.
+                Paste a URL to your logo image. Leave empty to use the default JudyTech logo.
               </p>
 
               {/* Preview */}
@@ -102,12 +102,12 @@ export default function SettingsPage() {
                       src="/logo.png"
                       alt="Default Logo"
                       fill
-                      className="object-cover"
+                      className="object-contain p-2"
                     />
                   )}
                 </div>
                 <p className="text-xs text-gray-400">
-                  {logoUrl ? "Custom logo" : "Default B99 logo"}
+                  {logoUrl ? "Custom logo" : "Default JudyTech logo"}
                 </p>
               </div>
 

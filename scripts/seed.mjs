@@ -1,7 +1,12 @@
-// Run with: node scripts/seed.mjs
+// Run with: node --env-file=.env.local scripts/seed.mjs   (Node 20+)
+//     or:   NEXT_PUBLIC_INSTANTDB_APP_ID=... node scripts/seed.mjs
 import { init, id } from "@instantdb/admin";
 
-const APP_ID = "254b5091-5192-46ff-b314-ae031e8e0607";
+const LEGACY_INSTANT_APP_ID = "254b5091-5192-46ff-b314-ae031e8e0607";
+const DEFAULT_INSTANT_APP_ID = "4a86cbee-44d0-49db-b911-09c3a6985bf4";
+const raw = process.env.NEXT_PUBLIC_INSTANTDB_APP_ID?.trim();
+const APP_ID =
+  !raw || raw === LEGACY_INSTANT_APP_ID ? DEFAULT_INSTANT_APP_ID : raw;
 
 // No admin token needed — runs with the same guest permissions as the browser
 const _db = init({ appId: APP_ID });

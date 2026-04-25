@@ -21,12 +21,12 @@ const cairo = Cairo({
 });
 
 export const metadata: Metadata = {
-  title: "B99 Coffee — Menu",
-  description: "B99 Coffee digital menu — B99 is always here to make your day better",
-  keywords: ["B99 Coffee", "coffee", "menu", "espresso", "drinks"],
+  title: "JudyTech — Menu",
+  description: "JudyTech digital menu — browse categories and items.",
+  keywords: ["JudyTech", "menu", "digital menu"],
   openGraph: {
-    title: "B99 Coffee Menu",
-    description: "B99 is always here to make your day better",
+    title: "JudyTech Menu",
+    description: "Digital menu experience",
     type: "website",
   },
 };

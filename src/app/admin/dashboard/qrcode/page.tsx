@@ -34,7 +34,7 @@ export default function QRCodePage() {
     ctx.drawImage(canvas, padding, padding);
 
     const link = document.createElement("a");
-    link.download = "b99-coffee-qr.png";
+    link.download = "judytech-menu-qr.png";
     link.href = paddedCanvas.toDataURL("image/png");
     link.click();
   }, []);
@@ -74,8 +74,8 @@ export default function QRCodePage() {
               />
             </div>
             <div className="text-center">
-              <p className="font-bold text-brand-dark text-lg">B99 COFFEE</p>
-              <p className="text-gray-400 text-sm">اختار مشروبك وخلي الباقي علينا</p>
+              <p className="font-bold text-brand-dark text-lg">JudyTech</p>
+              <p className="text-gray-400 text-sm">امسح الرمز لعرض القائمة</p>
             </div>
           </div>
 

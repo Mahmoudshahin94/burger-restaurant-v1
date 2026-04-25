@@ -92,11 +92,11 @@ export default function AdminSidebar({ onClose }: AdminSidebarProps) {
       {/* Header */}
       <div className="p-5 border-b border-white/10">
         <div className="flex items-center gap-3">
-          <div className="relative w-10 h-10 rounded-xl overflow-hidden bg-white/10 border border-white/20 flex-shrink-0">
-            <Image src="/logo.png" alt="B99" fill className="object-contain p-0.5" />
+          <div className="relative w-16 h-16 rounded-xl overflow-hidden bg-white/10 border border-white/20 flex-shrink-0">
+            <Image src="/logo.png" alt="JudyTech" fill className="object-contain p-1" sizes="64px" />
           </div>
           <div>
-            <p className="font-bold text-white text-sm leading-tight">B99 Coffee</p>
+            <p className="font-bold text-white text-sm leading-tight">Judy Tech</p>
             <p className="text-white/40 text-[11px] leading-tight">Admin Panel</p>
           </div>
         </div>

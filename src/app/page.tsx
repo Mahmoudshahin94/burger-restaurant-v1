@@ -1,8 +1,8 @@
 import MenuPage from "@/components/menu/MenuPage";
 
 export const metadata = {
-  title: "B99 Coffee — Menu",
-  description: "Explore B99 Coffee's full menu of hot drinks, cold drinks, milkshakes, juices, cocktails, and sweets.",
+  title: "JudyTech — Menu",
+  description: "Browse the digital menu — drinks, sweets, and more.",
 };
 
 export default function Home() {
