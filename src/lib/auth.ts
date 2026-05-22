@@ -20,7 +20,7 @@ export const authOptions: NextAuthOptions = {
           return {
             id: "1",
             name: "Admin",
-            email: "admin@b99coffee.com",
+            email: "admin@menu.app",
           };
         }
         return null;

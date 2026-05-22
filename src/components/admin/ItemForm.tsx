@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { useForm, Controller } from "react-hook-form";
-import type { MenuItem, Category } from "@/types";
-import ImageUpload from "./ImageUpload";
+import { useForm } from "react-hook-form";
+import type { MenuItem, Category, ItemImage } from "@/types";
+import MultiImageUpload, { type ManagedImage } from "./MultiImageUpload";
 
 interface FormData {
   name_en: string;
@@ -12,7 +12,6 @@ interface FormData {
   description_ar: string;
   price_small: number;
   price_large: number;
-  image: string;
   available: boolean;
   order: number;
   category_id: string;
@@ -20,14 +19,16 @@ interface FormData {
 
 interface ItemFormProps {
   initialData?: Partial<MenuItem>;
+  initialImages?: ItemImage[];
   categories: Category[];
-  onSubmit: (data: FormData) => Promise<void>;
+  onSubmit: (data: FormData, images: ManagedImage[]) => Promise<void>;
   onCancel: () => void;
   isEdit?: boolean;
 }
 
 export default function ItemForm({
   initialData,
+  initialImages,
   categories,
   onSubmit,
   onCancel,
@@ -35,10 +36,30 @@ export default function ItemForm({
 }: ItemFormProps) {
   const [submitError, setSubmitError] = useState<string | null>(null);
 
+  const [images, setImages] = useState<ManagedImage[]>(() => {
+    if (initialImages && initialImages.length > 0) {
+      return initialImages
+        .sort((a, b) => {
+          if (a.is_primary && !b.is_primary) return -1;
+          if (!a.is_primary && b.is_primary) return 1;
+          return (a.order ?? 0) - (b.order ?? 0);
+        })
+        .map((img) => ({
+          key: img.id,
+          url: img.image,
+          isPrimary: img.is_primary,
+        }));
+    }
+    // Migrate legacy single image if present
+    if (initialData?.image) {
+      return [{ key: "legacy", url: initialData.image, isPrimary: true }];
+    }
+    return [];
+  });
+
   const {
     register,
     handleSubmit,
-    control,
     formState: { errors, isSubmitting },
   } = useForm<FormData>({
     defaultValues: {
@@ -48,7 +69,6 @@ export default function ItemForm({
       description_ar: initialData?.description_ar ?? "",
       price_small: initialData?.price_small ?? 0,
       price_large: initialData?.price_large ?? 0,
-      image: initialData?.image ?? "",
       available: initialData?.available ?? true,
       order: initialData?.order ?? 1,
       category_id: initialData?.category_id ?? "",
@@ -77,12 +97,15 @@ export default function ItemForm({
   const handleFormSubmit = async (data: FormData) => {
     setSubmitError(null);
     try {
-      await onSubmit({
-        ...data,
-        price_small: Number(data.price_small),
-        price_large: Number(data.price_large),
-        order: Number(data.order),
-      });
+      await onSubmit(
+        {
+          ...data,
+          price_small: Number(data.price_small),
+          price_large: Number(data.price_large),
+          order: Number(data.order),
+        },
+        images
+      );
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
     }
@@ -172,14 +195,8 @@ export default function ItemForm({
         </select>
       </Field>
 
-      <Field label="Image">
-        <Controller
-          name="image"
-          control={control}
-          render={({ field }) => (
-            <ImageUpload value={field.value ?? ""} onChange={field.onChange} />
-          )}
-        />
+      <Field label="Images">
+        <MultiImageUpload images={images} onChange={setImages} />
       </Field>
 
       <div className="flex items-center gap-3">

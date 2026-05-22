@@ -25,6 +25,22 @@ const schema = i.schema({
       key: i.string(),
       value: i.string(),
     }),
+    banners: i.entity({
+      title_en: i.string(),
+      title_ar: i.string(),
+      subtitle_en: i.string(),
+      subtitle_ar: i.string(),
+      image: i.string(),
+      link: i.string(),
+      active: i.boolean(),
+      order: i.number(),
+    }),
+    item_images: i.entity({
+      item_id: i.string(),
+      image: i.string(),
+      is_primary: i.boolean(),
+      order: i.number(),
+    }),
   },
 });
 

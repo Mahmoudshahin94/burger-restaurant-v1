@@ -20,7 +20,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     setMounted(true);
-    const stored = localStorage.getItem("b99-theme") as Theme | null;
+    const stored = localStorage.getItem("menu-theme") as Theme | null;
     if (stored === "dark" || stored === "light") {
       setTheme(stored);
     } else if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
@@ -36,7 +36,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     } else {
       root.classList.remove("dark");
     }
-    localStorage.setItem("b99-theme", theme);
+    localStorage.setItem("menu-theme", theme);
   }, [theme, mounted]);
 
   const toggleTheme = () => setTheme((t) => (t === "light" ? "dark" : "light"));

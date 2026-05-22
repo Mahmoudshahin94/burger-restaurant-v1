@@ -70,7 +70,7 @@ const PHOTOS = {
   "carrot juice":                   "https://images.unsplash.com/photo-1623065422902-30a2d299bbe4?w=600&q=85",
   // Cocktails — all verified portrait
   "piña colada":                    "https://images.unsplash.com/photo-1517256064527-09c73fc73e38?w=600&q=85",
-  "b99 cocktail":                   "https://images.unsplash.com/photo-1559496417-e7f25cb247f3?w=600&q=85",
+  "house cocktail":                   "https://images.unsplash.com/photo-1559496417-e7f25cb247f3?w=600&q=85",
   "avocado cocktail":               "https://images.unsplash.com/photo-1549490349-8643362247b5?w=600&q=85",
   // Mojito
   "mojito":                         "https://images.unsplash.com/photo-1587223962930-cb7f31384c19?w=600&q=85",
@@ -81,7 +81,7 @@ const PHOTOS = {
   "waffle":                         "https://images.unsplash.com/photo-1530610476181-d83430b64dcd?w=600&q=85",
   "fshafesh cup":                   "https://images.unsplash.com/photo-1563729784474-d77dbb933a9e?w=600&q=85",
   "dubai cup":                      "https://images.unsplash.com/photo-1563729784474-d77dbb933a9e?w=600&q=85",
-  "b99 cup":                        "https://images.unsplash.com/photo-1563729784474-d77dbb933a9e?w=600&q=85",
+  "house cup":                        "https://images.unsplash.com/photo-1563729784474-d77dbb933a9e?w=600&q=85",
 };
 const FALLBACK = "https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=600&q=85";
 
@@ -164,7 +164,7 @@ const items = [
   ["Carrot Juice", "جزر",         10, 12, 4],
   // Cocktails (5)
   ["Piña Colada",      "بيناكولادا", 0, 20, 5],
-  ["B99 Cocktail",     "B99",        0, 20, 5],
+  ["House Cocktail",   "كوكتيل مميز",        0, 20, 5],
   ["Avocado Cocktail", "أفوجادو",    0, 20, 5],
   // Mojito (6)
   ["Mojito", "موهيتو", 0, 12, 6],
@@ -175,12 +175,12 @@ const items = [
   ["Waffle",       "وافل",        0, 10, 7],
   ["Fshafesh Cup", "كاسة فشافيش", 0, 10, 7],
   ["Dubai Cup",    "كاسة دبي",    0, 18, 7],
-  ["B99 Cup",      "كاسة B99",    0, 18, 7],
+  ["House Cup",      "كأس مميز",    0, 18, 7],
 ];
 
 // ─── Main ────────────────────────────────────────────────────────────────────
 async function main() {
-  console.log("\n☕  B99 Coffee — Database Seeder\n");
+  console.log("\n☕  Menu — Database Seeder\n");
 
   // Check existing data
   console.log("🔍  Checking existing data…");

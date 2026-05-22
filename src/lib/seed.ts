@@ -95,7 +95,7 @@ const items: SeedItem[] = [
 
   // Cocktails (5)
   { name_en: "Piña Colada", name_ar: "بيناكولادا", description_en: "", description_ar: "", price_small: 0, price_large: 20, image: "", available: true, order: 1, categoryIndex: 5 },
-  { name_en: "B99 Cocktail", name_ar: "B99", description_en: "", description_ar: "", price_small: 0, price_large: 20, image: "", available: true, order: 2, categoryIndex: 5 },
+  { name_en: "House Cocktail", name_ar: "كوكتيل مميز", description_en: "", description_ar: "", price_small: 0, price_large: 20, image: "", available: true, order: 2, categoryIndex: 5 },
   { name_en: "Avocado Cocktail", name_ar: "أفوجادو", description_en: "", description_ar: "", price_small: 0, price_large: 20, image: "", available: true, order: 3, categoryIndex: 5 },
 
   // Mojito (6)
@@ -108,7 +108,7 @@ const items: SeedItem[] = [
   { name_en: "Waffle", name_ar: "وافل", description_en: "", description_ar: "", price_small: 0, price_large: 10, image: "", available: true, order: 4, categoryIndex: 7 },
   { name_en: "Fshafesh Cup", name_ar: "كاسة فشافيش", description_en: "", description_ar: "", price_small: 0, price_large: 10, image: "", available: true, order: 5, categoryIndex: 7 },
   { name_en: "Dubai Cup", name_ar: "كاسة دبي", description_en: "", description_ar: "", price_small: 0, price_large: 18, image: "", available: true, order: 6, categoryIndex: 7 },
-  { name_en: "B99 Cup", name_ar: "كاسة B99", description_en: "", description_ar: "", price_small: 0, price_large: 18, image: "", available: true, order: 7, categoryIndex: 7 },
+  { name_en: "House Cup", name_ar: "كأس مميز", description_en: "", description_ar: "", price_small: 0, price_large: 18, image: "", available: true, order: 7, categoryIndex: 7 },
 ];
 
 export async function seedDatabase() {

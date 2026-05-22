@@ -63,7 +63,7 @@ const ITEM_PHOTOS: Record<string, string> = {
   "carrot juice":                   "https://images.unsplash.com/photo-1623065422902-30a2d299bbe4?w=600&q=85",
   // Cocktails
   "piña colada":                    "https://images.unsplash.com/photo-1517256064527-09c73fc73e38?w=600&q=85",
-  "b99 cocktail":                   "https://images.unsplash.com/photo-1559496417-e7f25cb247f3?w=600&q=85",
+  "house cocktail":                 "https://images.unsplash.com/photo-1559496417-e7f25cb247f3?w=600&q=85",
   "avocado cocktail":               "https://images.unsplash.com/photo-1549490349-8643362247b5?w=600&q=85",
   // Mojito
   "mojito":                         "https://images.unsplash.com/photo-1587223962930-cb7f31384c19?w=600&q=85",
@@ -74,7 +74,7 @@ const ITEM_PHOTOS: Record<string, string> = {
   "waffle":                         "https://images.unsplash.com/photo-1530610476181-d83430b64dcd?w=600&q=85",
   "fshafesh cup":                   "https://images.unsplash.com/photo-1563729784474-d77dbb933a9e?w=600&q=85",
   "dubai cup":                      "https://images.unsplash.com/photo-1563729784474-d77dbb933a9e?w=600&q=85",
-  "b99 cup":                        "https://images.unsplash.com/photo-1563729784474-d77dbb933a9e?w=600&q=85",
+  "house cup":                      "https://images.unsplash.com/photo-1563729784474-d77dbb933a9e?w=600&q=85",
 };
 
 const FALLBACK = "https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=600&q=85";
@@ -199,13 +199,13 @@ export default function SeedNowPage() {
         {/* Logo */}
         <div className="flex justify-center mb-6">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.png" alt="B99 Coffee" className="w-20 h-20 object-contain drop-shadow-md" />
+          <img src="/logo.png" alt="Menu" className="w-20 h-20 object-contain drop-shadow-md" />
         </div>
 
         {!finished ? (
           <>
             <h1 className="text-xl font-bold text-gray-800 text-center mb-1">
-              Setting Up B99 Menu
+              Setting Up Menu
             </h1>
             <p className="text-gray-400 text-sm text-center mb-8">
               This only runs once — adding all data &amp; photos

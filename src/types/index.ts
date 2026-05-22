@@ -27,6 +27,26 @@ export interface Settings {
   value: string;
 }
 
+export interface Banner {
+  id: string;
+  title_en: string;
+  title_ar: string;
+  subtitle_en: string;
+  subtitle_ar: string;
+  image: string;
+  link: string;
+  active: boolean;
+  order: number;
+}
+
+export interface ItemImage {
+  id: string;
+  item_id: string;
+  image: string;
+  is_primary: boolean;
+  order: number;
+}
+
 export type Language = "en" | "ar";
 
 export interface LanguageContextType {

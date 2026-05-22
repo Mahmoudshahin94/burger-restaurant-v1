@@ -17,6 +17,7 @@ export default function SettingsPage() {
 
   const [logoUrl, setLogoUrl] = useState("");
   const [defaultLang, setDefaultLang] = useState("ar");
+  const [carouselSec, setCarouselSec] = useState(5);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -25,8 +26,13 @@ export default function SettingsPage() {
     const settings: Setting[] = data.settings;
     const logo = settings.find((s) => s.key === "logo");
     const lang = settings.find((s) => s.key === "default_lang");
+    const interval = settings.find((s) => s.key === "carousel_interval");
     if (logo) setLogoUrl(logo.value ?? "");
     if (lang) setDefaultLang(lang.value ?? "ar");
+    if (interval) {
+      const ms = parseInt(interval.value, 10);
+      if (!isNaN(ms)) setCarouselSec(Math.round(ms / 1000));
+    }
   }, [data?.settings]);
 
   const handleSave = async () => {
@@ -36,6 +42,10 @@ export default function SettingsPage() {
 
     const logoSetting = settings.find((s) => s.key === "logo");
     const langSetting = settings.find((s) => s.key === "default_lang");
+    const intervalSetting = settings.find((s) => s.key === "carousel_interval");
+
+    const clampedSec = Math.min(30, Math.max(2, carouselSec));
+    const intervalMs = String(clampedSec * 1000);
 
     const transactions = [];
 
@@ -51,6 +61,13 @@ export default function SettingsPage() {
     } else {
       const newId = id();
       transactions.push(db.tx.settings[newId].update({ key: "default_lang", value: defaultLang }));
+    }
+
+    if (intervalSetting) {
+      transactions.push(db.tx.settings[intervalSetting.id].update({ value: intervalMs }));
+    } else {
+      const newId = id();
+      transactions.push(db.tx.settings[newId].update({ key: "carousel_interval", value: intervalMs }));
     }
 
     await db.transact(transactions);
@@ -170,6 +187,43 @@ export default function SettingsPage() {
                     <p className="text-xs text-gray-400">English (LTR)</p>
                   </div>
                 </label>
+              </div>
+            </div>
+
+            <hr className="border-gray-100" />
+
+            {/* Carousel Interval */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Carousel Auto-Slide Interval
+              </label>
+              <p className="text-xs text-gray-400 mb-3">
+                How long each banner is displayed before auto-advancing. Min 2 s, max 30 s.
+              </p>
+              <div className="flex items-center gap-4">
+                <input
+                  type="range"
+                  min={2}
+                  max={30}
+                  step={1}
+                  value={carouselSec}
+                  onChange={(e) => setCarouselSec(Number(e.target.value))}
+                  className="flex-1 accent-brand-red"
+                />
+                <div className="flex items-center gap-1.5 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 w-24">
+                  <input
+                    type="number"
+                    min={2}
+                    max={30}
+                    value={carouselSec}
+                    onChange={(e) => {
+                      const v = Number(e.target.value);
+                      setCarouselSec(Math.min(30, Math.max(2, isNaN(v) ? 5 : v)));
+                    }}
+                    className="w-10 text-sm font-semibold text-gray-800 bg-transparent focus:outline-none"
+                  />
+                  <span className="text-xs text-gray-400">sec</span>
+                </div>
               </div>
             </div>
 

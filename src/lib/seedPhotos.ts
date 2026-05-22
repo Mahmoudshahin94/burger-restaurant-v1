@@ -116,7 +116,7 @@ const ITEM_PHOTOS: Record<string, string> = {
   // ── Cocktails ─────────────────────────────────────────────
   "piña colada":
     "https://images.unsplash.com/photo-1609168544516-d1e3c9f31f5e?w=600&q=85",
-  "b99 cocktail":
+  "house cocktail":
     "https://images.unsplash.com/photo-1536935338788-846bb9981813?w=600&q=85",
   "avocado cocktail":
     "https://images.unsplash.com/photo-1596203791059-83ef99ffe4f0?w=600&q=85",
@@ -138,7 +138,7 @@ const ITEM_PHOTOS: Record<string, string> = {
     "https://images.unsplash.com/photo-1563729784474-d77dbb933a9e?w=600&q=85",
   "dubai cup":
     "https://images.unsplash.com/photo-1563729784474-d77dbb933a9e?w=600&q=85",
-  "b99 cup":
+  "house cup":
     "https://images.unsplash.com/photo-1563729784474-d77dbb933a9e?w=600&q=85",
 };
 

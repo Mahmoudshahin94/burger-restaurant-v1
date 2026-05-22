@@ -88,7 +88,7 @@
   "out_of_stock": "Out of Stock",
 
   "seed_data": "Load Sample Data",
-  "seed_confirm": "This will populate the database with B99 Coffee menu data. Continue?",
+  "seed_confirm": "This will populate the database with sample menu data. Continue?",
   "seeding": "Loading...",
   "seed_success": "Menu data loaded successfully!",
   "seed_error": "Failed to load menu data"

@@ -10,7 +10,8 @@ import CategoryTabs from "./CategoryTabs";
 import SearchBar from "./SearchBar";
 import MenuItemCard from "./MenuItemCard";
 import LanguageToggle from "./LanguageToggle";
-import type { Category, MenuItem } from "@/types";
+import HeroBannerCarousel from "@/components/carousel/HeroBannerCarousel";
+import type { Category, MenuItem, Banner, ItemImage } from "@/types";
 
 /* ── Arabic search normalization ────────────────────────
    Strips diacritics, normalizes alef variants, ta-marbuta,
@@ -97,6 +98,8 @@ export default function MenuPage() {
     categories: {},
     items: {},
     settings: {},
+    banners: {},
+    item_images: {},
   });
 
   /* Scroll listener – shrink header */
@@ -123,6 +126,20 @@ export default function MenuPage() {
   const brandLogoRemote =
     brandLogoSrc.startsWith("http://") || brandLogoSrc.startsWith("https://");
 
+  const banners: Banner[] = useMemo(() => {
+    if (!data?.banners) return [];
+    return data.banners as Banner[];
+  }, [data?.banners]);
+
+  const carouselInterval = useMemo(() => {
+    if (!data?.settings) return 5000;
+    const s = data.settings.find((x: { key: string; value: string }) => x.key === "carousel_interval");
+    const ms = s ? parseInt(s.value, 10) : NaN;
+    return isNaN(ms) ? 5000 : ms;
+  }, [data?.settings]);
+
+  const hasActiveBanners = banners.some((b) => b.active);
+
   const categories: Category[] = useMemo(() => {
     if (!data?.categories) return [];
     return (data.categories as Category[]).filter((c) => c.active).sort((a, b) => a.order - b.order);
@@ -132,6 +149,11 @@ export default function MenuPage() {
     if (!data?.items) return [];
     return data.items as MenuItem[];
   }, [data?.items]);
+
+  const allItemImages: ItemImage[] = useMemo(() => {
+    if (!data?.item_images) return [];
+    return data.item_images as ItemImage[];
+  }, [data?.item_images]);
 
   const filteredItems = useMemo(() => {
     let items = allItems;
@@ -296,85 +318,96 @@ export default function MenuPage() {
       </header>
 
       {/* ─── HERO SECTION ────────────────────────────── */}
-      <section className="hero-section">
-        {/* Decorative ambient glows */}
-        <div
-          className="hero-glow w-64 h-64 -top-16 -start-16"
-          style={{ background: "radial-gradient(circle, rgba(204,80,30,0.18) 0%, transparent 70%)", position: "absolute" }}
-        />
-        <div
-          className="hero-glow w-48 h-48 -bottom-8 -end-8"
-          style={{ background: "radial-gradient(circle, rgba(204,0,0,0.12) 0%, transparent 70%)", position: "absolute" }}
-        />
+      {hasActiveBanners ? (
+        <section className="px-4 pt-4 pb-2 max-w-2xl mx-auto">
+          <HeroBannerCarousel
+            banners={banners}
+            interval={carouselInterval}
+            lang={lang}
+            isRTL={isRTL}
+          />
+        </section>
+      ) : (
+        <section className="hero-section">
+          {/* Decorative ambient glows */}
+          <div
+            className="hero-glow w-64 h-64 -top-16 -start-16"
+            style={{ background: "radial-gradient(circle, rgba(204,80,30,0.18) 0%, transparent 70%)", position: "absolute" }}
+          />
+          <div
+            className="hero-glow w-48 h-48 -bottom-8 -end-8"
+            style={{ background: "radial-gradient(circle, rgba(204,0,0,0.12) 0%, transparent 70%)", position: "absolute" }}
+          />
 
-        <div className="relative z-10 flex flex-col items-center text-center px-4">
-          {/* Logo orb */}
-          <div className="hero-logo-wrap">
-            <div className="relative w-44 h-44">
-              <Image
-                src={brandLogoSrc}
-                alt={brandLogoAlt}
-                fill
-                className="object-contain drop-shadow-lg"
-                priority
-                sizes="176px"
-                unoptimized={brandLogoRemote}
-              />
+          <div className="relative z-10 flex flex-col items-center text-center px-4">
+            {/* Logo orb */}
+            <div className="hero-logo-wrap">
+              <div className="relative w-44 h-44">
+                <Image
+                  src={brandLogoSrc}
+                  alt={brandLogoAlt}
+                  fill
+                  className="object-contain drop-shadow-lg"
+                  priority
+                  sizes="176px"
+                  unoptimized={brandLogoRemote}
+                />
+              </div>
             </div>
+
+            {/* WhatsApp — order */}
+            <motion.a
+              href={WHATSAPP_ORDER_HREF}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-4 inline-flex flex-col items-center gap-1 rounded-2xl px-4 py-2.5 text-center transition-colors hover:bg-black/[0.04] dark:hover:bg-white/[0.06] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.45, delay: 0.12 }}
+            >
+              <span className="inline-flex items-center gap-2 text-[#25D366]">
+                <WhatsAppIcon className="w-5 h-5 flex-shrink-0" />
+                <span className="text-sm font-semibold text-ink">{t("order_whatsapp")}</span>
+              </span>
+              <span className="text-xs font-medium text-ink-2 tabular-nums" dir="ltr">
+                +972 52-417-1936
+              </span>
+            </motion.a>
+
+            {/* Shop name */}
+            <motion.h1
+              className="mt-4 text-2xl font-bold text-ink tracking-tight tagline-fade"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+            >
+              {shopName || t("site_name")}
+            </motion.h1>
+
+            {/* Tagline */}
+            <motion.p
+              className="mt-1.5 text-ink-2 text-sm font-medium tagline-fade"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.35 }}
+            >
+              {t("tagline")}
+            </motion.p>
+
+            {/* Decorative divider */}
+            <motion.div
+              className="mt-5 flex items-center gap-3"
+              initial={{ opacity: 0, scaleX: 0 }}
+              animate={{ opacity: 1, scaleX: 1 }}
+              transition={{ duration: 0.5, delay: 0.5 }}
+            >
+              <span className="h-px w-16 bg-gradient-to-r from-transparent via-border to-transparent" />
+              <span className="text-ink-3 text-xs">✦</span>
+              <span className="h-px w-16 bg-gradient-to-l from-transparent via-border to-transparent" />
+            </motion.div>
           </div>
-
-          {/* WhatsApp — order */}
-          <motion.a
-            href={WHATSAPP_ORDER_HREF}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-4 inline-flex flex-col items-center gap-1 rounded-2xl px-4 py-2.5 text-center transition-colors hover:bg-black/[0.04] dark:hover:bg-white/[0.06] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.45, delay: 0.12 }}
-          >
-            <span className="inline-flex items-center gap-2 text-[#25D366]">
-              <WhatsAppIcon className="w-5 h-5 flex-shrink-0" />
-              <span className="text-sm font-semibold text-ink">{t("order_whatsapp")}</span>
-            </span>
-            <span className="text-xs font-medium text-ink-2 tabular-nums" dir="ltr">
-              +972 52-417-1936
-            </span>
-          </motion.a>
-
-          {/* Shop name */}
-          <motion.h1
-            className="mt-4 text-2xl font-bold text-ink tracking-tight tagline-fade"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-          >
-            {shopName || t("site_name")}
-          </motion.h1>
-
-          {/* Tagline */}
-          <motion.p
-            className="mt-1.5 text-ink-2 text-sm font-medium tagline-fade"
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.35 }}
-          >
-            {t("tagline")}
-          </motion.p>
-
-          {/* Decorative divider */}
-          <motion.div
-            className="mt-5 flex items-center gap-3"
-            initial={{ opacity: 0, scaleX: 0 }}
-            animate={{ opacity: 1, scaleX: 1 }}
-            transition={{ duration: 0.5, delay: 0.5 }}
-          >
-            <span className="h-px w-16 bg-gradient-to-r from-transparent via-border to-transparent" />
-            <span className="text-ink-3 text-xs">✦</span>
-            <span className="h-px w-16 bg-gradient-to-l from-transparent via-border to-transparent" />
-          </motion.div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* ─── STICKY CATEGORY CARDS ───────────────────── */}
       <div
@@ -450,6 +483,7 @@ export default function MenuPage() {
                       item={item}
                       index={i}
                       category={categories.find((c) => c.id === item.category_id)}
+                      itemImages={allItemImages.filter((img) => img.item_id === item.id)}
                     />
                   ))}
                 </div>
@@ -520,6 +554,7 @@ export default function MenuPage() {
                           item={item}
                           index={i}
                           category={category}
+                          itemImages={allItemImages.filter((img) => img.item_id === item.id)}
                         />
                       ))}
                     </div>

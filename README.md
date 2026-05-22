@@ -1,4 +1,4 @@
-#   Coffee — Digital Menu System
+# Menu — Digital Menu System
 
 A modern, bilingual (Arabic/English) digital coffee shop menu built with Next.js 14, InstantDB, and Tailwind CSS.
 
@@ -71,11 +71,11 @@ Go to [http://localhost:3000/admin/login](http://localhost:3000/admin/login)
 
 Default credentials (set in `.env.local`):
 - **Username:** `admin`
-- **Password:** ` admin2024`
+- **Password:** `your-secure-password` (as in `.env.local`)
 
 ### 5. Load Menu Data
 
-After logging into the admin panel, go to **Dashboard** and click **"🌱 Load   Menu Data"** to pre-populate your database with all 60+   Coffee menu items across 8 categories.
+After logging into the admin panel, go to **Dashboard** and click **"🌱 Load sample menu data"** to pre-populate your database with all 60+ sample menu items across 8 categories.
 
 ## Cloudinary Setup (Image Uploads)
 
@@ -83,11 +83,11 @@ After logging into the admin panel, go to **Dashboard** and click **"🌱 Load  
 2. Go to **Settings → Upload → Upload presets**
 3. Click **Add upload preset**, set:
    - Signing Mode: **Unsigned**
-   - Preset name: ` -menu-upload`
+   - Preset name: `menu-upload`
 4. Add to `.env.local`:
    ```env
    NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME=your-cloud-name
-   NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET= -menu-upload
+   NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET=menu-upload
    ```
 
 > Without Cloudinary, you can still use image URLs manually (paste any image URL in the item form).
@@ -150,4 +150,4 @@ After deployment, go to `/admin/dashboard/qrcode` to download the QR code with y
 
 ---
 
-*  Coffee —   دايماً موجود ليحسن مزاجك*
+*Menu — دايماً موجود ليحسن مزاجك*

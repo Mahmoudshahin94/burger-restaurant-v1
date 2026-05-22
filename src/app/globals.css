@@ -207,6 +207,11 @@ body {
   font-weight: 700;
 }
 
+/* ─── Item size selector active state ────────────── */
+.item-size-active {
+  background: color-mix(in srgb, var(--color-primary) 7%, transparent);
+}
+
 /* ─── Input focus ────────────────────────────────── */
 :focus-visible {
   outline: 2px solid var(--color-primary);
@@ -265,3 +270,7 @@ body {
 .sidebar-enter-active { transform: translateX(0); transition: transform 0.3s ease; }
 .sidebar-exit    { transform: translateX(0); }
 .sidebar-exit-active  { transform: translateX(-100%); transition: transform 0.3s ease; }
+
+/* ─── Safe area helpers (item detail page) ───────── */
+.pt-safe { padding-top: max(1rem, env(safe-area-inset-top)); }
+.pb-safe { padding-bottom: max(1.25rem, env(safe-area-inset-bottom)); }
