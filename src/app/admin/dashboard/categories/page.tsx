@@ -31,11 +31,11 @@ export default function CategoriesPage() {
     await supabase.from("categories").insert({
       name_en: formData.name_en,
       name_ar: formData.name_ar,
-      icon: formData.icon ?? "",
-      image: formData.image ?? null,
+      icon: formData.icon || "",
+      image: formData.image || null,
       sort_order: formData.order,
       active: formData.active,
-    });
+    } as Record<string, unknown>);
     await fetchCategories();
     setShowAdd(false);
   };
@@ -45,8 +45,8 @@ export default function CategoriesPage() {
     await supabase.from("categories").update({
       name_en: formData.name_en,
       name_ar: formData.name_ar,
-      icon: formData.icon ?? "",
-      image: formData.image ?? null,
+      icon: formData.icon || "",
+      image: formData.image || null,
       sort_order: formData.order,
       active: formData.active,
     }).eq("id", editCategory.id);
