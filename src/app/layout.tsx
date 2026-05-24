@@ -4,7 +4,7 @@ import "./globals.css";
 import { LanguageProvider } from "@/context/LanguageContext";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { ToastProvider } from "@/context/ToastContext";
-import SessionWrapper from "@/components/SessionWrapper";
+import { CartProvider } from "@/context/CartContext";
 
 const poppins = Poppins({
   variable: "--font-poppins",
@@ -21,12 +21,12 @@ const cairo = Cairo({
 });
 
 export const metadata: Metadata = {
-  title: "JudyTech — Menu",
-  description: "JudyTech digital menu — browse categories and items.",
-  keywords: ["JudyTech", "menu", "digital menu"],
+  title: "JudyTech — Store",
+  description: "JudyTech online store — browse and order your favorites.",
+  keywords: ["JudyTech", "store", "online shop"],
   openGraph: {
-    title: "JudyTech Menu",
-    description: "Digital menu experience",
+    title: "JudyTech Store",
+    description: "Order your favorites online",
     type: "website",
   },
 };
@@ -37,15 +37,15 @@ export default function RootLayout({
   return (
     <html lang="ar" dir="rtl" suppressHydrationWarning>
       <body className={`${poppins.variable} ${cairo.variable} antialiased bg-bg text-ink min-h-screen`}>
-        <SessionWrapper>
-          <ThemeProvider>
-            <LanguageProvider>
-              <ToastProvider>
+        <ThemeProvider>
+          <LanguageProvider>
+            <ToastProvider>
+              <CartProvider>
                 {children}
-              </ToastProvider>
-            </LanguageProvider>
-          </ThemeProvider>
-        </SessionWrapper>
+              </CartProvider>
+            </ToastProvider>
+          </LanguageProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

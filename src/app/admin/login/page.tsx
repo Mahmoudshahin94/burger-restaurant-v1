@@ -1,35 +1,83 @@
 "use client";
 
-import { useState } from "react";
-import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useState, useMemo } from "react";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
+import { createClient } from "@/lib/supabase/client";
 
 export default function AdminLoginPage() {
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const router = useRouter();
+  const supabase = useMemo(() => createClient(), []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setLoading(true);
-    const result = await signIn("credentials", { username, password, redirect: false });
-    setLoading(false);
-    if (result?.ok) {
-      router.push("/admin/dashboard");
-    } else {
-      setError("Invalid username or password");
+
+    try {
+      // Add timeout to prevent hanging
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error("timeout")), 15000)
+      );
+
+      const signInPromise = supabase.auth.signInWithPassword({ email, password });
+      
+      const result = await Promise.race([signInPromise, timeoutPromise]) as Awaited<typeof signInPromise>;
+      const { data, error: signInError } = result;
+
+      if (signInError || !data.user) {
+        setError(signInError?.message || "Invalid email or password");
+        setLoading(false);
+        return;
+      }
+
+      // Verify admin role with timeout
+      const profilePromise = supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", data.user.id)
+        .single();
+      
+      const profileResult = await Promise.race([
+        profilePromise, 
+        new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 10000))
+      ]) as Awaited<typeof profilePromise>;
+      
+      const { data: profile, error: profileError } = profileResult;
+
+      if (profileError) {
+        setError("Failed to verify admin status. Please try again.");
+        setLoading(false);
+        return;
+      }
+
+      if (profile?.role !== "admin") {
+        await supabase.auth.signOut();
+        setError("Access denied. Admin account required.");
+        setLoading(false);
+        return;
+      }
+
+      // Hard redirect so the browser commits session cookies before the
+      // server-side layout reads them.
+      window.location.href = "/admin/dashboard";
+    } catch (err) {
+      console.error("Login error:", err);
+      if (err instanceof Error && err.message === "timeout") {
+        setError("Connection timed out. Please check your internet and try again.");
+      } else {
+        setError("Connection error. Please check your internet and try again.");
+      }
+      setLoading(false);
     }
   };
 
   return (
     <div className="min-h-screen bg-brand-espresso flex items-center justify-center px-4 relative overflow-hidden">
-      {/* Background blobs */}
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute -top-40 -right-40 w-96 h-96 rounded-full bg-primary/20 blur-3xl" />
         <div className="absolute -bottom-40 -left-40 w-96 h-96 rounded-full bg-brand-latte/20 blur-3xl" />
@@ -41,19 +89,16 @@ export default function AdminLoginPage() {
         transition={{ duration: 0.45, ease: "easeOut" }}
         className="w-full max-w-sm relative z-10"
       >
-        {/* Logo */}
         <div className="text-center mb-8">
           <div className="relative w-32 h-32 mx-auto mb-4 rounded-2xl overflow-hidden bg-white/10 border border-white/20 shadow-xl">
             <Image src="/logo.png" alt="JudyTech" fill className="object-contain p-2" sizes="128px" priority />
           </div>
           <h1 className="text-2xl font-bold text-white tracking-tight">Admin Panel</h1>
-          <p className="text-white/50 text-sm mt-1">Sign in to manage your menu</p>
+          <p className="text-white/50 text-sm mt-1">Sign in to manage your store</p>
         </div>
 
-        {/* Card */}
         <div className="bg-white/[0.08] backdrop-blur-xl border border-white/[0.12] rounded-3xl p-6 shadow-2xl">
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Error */}
             <AnimatePresence>
               {error && (
                 <motion.div
@@ -68,23 +113,21 @@ export default function AdminLoginPage() {
               )}
             </AnimatePresence>
 
-            {/* Username */}
             <div className="space-y-1.5">
               <label className="block text-white/60 text-xs font-semibold uppercase tracking-wider">
-                Username
+                Email
               </label>
               <input
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 required
-                autoComplete="username"
-                placeholder="admin"
+                autoComplete="email"
+                placeholder="admin@judytech.com"
                 className="w-full bg-white/10 border border-white/15 rounded-2xl px-4 py-3.5 text-white text-sm placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
               />
             </div>
 
-            {/* Password */}
             <div className="space-y-1.5">
               <label className="block text-white/60 text-xs font-semibold uppercase tracking-wider">
                 Password
@@ -118,7 +161,6 @@ export default function AdminLoginPage() {
               </div>
             </div>
 
-            {/* Submit */}
             <button
               type="submit"
               disabled={loading}

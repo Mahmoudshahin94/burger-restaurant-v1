@@ -23,7 +23,11 @@ export default function HeroBannerCarousel({
   const [paused, setPaused] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const activeBanners = banners.filter((b) => b.active).sort((a, b) => a.order - b.order);
+  // Native touch/pointer swipe — avoids framer-motion drag gesture listeners
+  const touchStartX = useRef<number | null>(null);
+  const touchStartY = useRef<number | null>(null);
+
+  const activeBanners = banners.filter((b) => b.active).sort((a, b) => (a.sort_order ?? a.order ?? 0) - (b.sort_order ?? b.order ?? 0));
   const total = activeBanners.length;
 
   const goTo = useCallback(
@@ -51,6 +55,25 @@ export default function HeroBannerCarousel({
     };
   }, [current, total, interval, paused, next]);
 
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+    setPaused(true);
+  }, []);
+
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    setPaused(false);
+    if (touchStartX.current === null || touchStartY.current === null) return;
+    const dx = e.changedTouches[0].clientX - touchStartX.current;
+    const dy = e.changedTouches[0].clientY - touchStartY.current;
+    touchStartX.current = null;
+    touchStartY.current = null;
+    // Only swipe if horizontal movement dominates
+    if (Math.abs(dx) < 40 || Math.abs(dy) > Math.abs(dx)) return;
+    if (dx < 0) next();
+    else prev();
+  }, [next, prev]);
+
   if (total === 0) return null;
 
   const banner = activeBanners[current];
@@ -65,12 +88,11 @@ export default function HeroBannerCarousel({
 
   return (
     <div
-      className="relative w-full overflow-hidden rounded-3xl select-none"
-      style={{ minHeight: 220 }}
+      className="relative w-full overflow-hidden rounded-2xl sm:rounded-3xl select-none min-h-[200px] sm:min-h-[280px] lg:min-h-[360px]"
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
-      onTouchStart={() => setPaused(true)}
-      onTouchEnd={() => setPaused(false)}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
     >
       <AnimatePresence initial={false} custom={direction} mode="popLayout">
         <motion.div
@@ -82,14 +104,6 @@ export default function HeroBannerCarousel({
           exit="exit"
           transition={{ duration: 0.45, ease: [0.32, 0.72, 0, 1] }}
           className="absolute inset-0 w-full h-full"
-          drag={total > 1 ? "x" : false}
-          dragConstraints={{ left: 0, right: 0 }}
-          dragElastic={0.15}
-          onDragEnd={(_, info) => {
-            const threshold = 40;
-            if (info.offset.x < -threshold) next();
-            else if (info.offset.x > threshold) prev();
-          }}
         >
           {/* Background image */}
           {banner.image ? (
@@ -111,7 +125,7 @@ export default function HeroBannerCarousel({
 
           {/* Content */}
           <div
-            className={`relative z-10 flex flex-col h-full px-6 pb-12 pt-8 justify-end ${
+            className={`relative z-10 flex flex-col h-full px-5 sm:px-8 lg:px-10 pb-10 sm:pb-14 lg:pb-16 pt-6 sm:pt-8 lg:pt-10 justify-end ${
               isRTL ? "items-end text-right" : "items-start text-left"
             }`}
           >
@@ -120,7 +134,7 @@ export default function HeroBannerCarousel({
                 initial={{ opacity: 0, y: 14 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, delay: 0.12 }}
-                className="text-white font-bold text-2xl leading-tight drop-shadow-lg max-w-xs"
+                className="text-white font-bold text-xl sm:text-2xl lg:text-3xl leading-tight drop-shadow-lg max-w-xs sm:max-w-sm lg:max-w-md"
               >
                 {title}
               </motion.h2>
@@ -130,7 +144,7 @@ export default function HeroBannerCarousel({
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, delay: 0.22 }}
-                className="text-white/85 text-sm mt-1.5 font-medium drop-shadow max-w-xs"
+                className="text-white/85 text-sm sm:text-base lg:text-lg mt-1.5 sm:mt-2 font-medium drop-shadow max-w-xs sm:max-w-sm lg:max-w-md"
               >
                 {subtitle}
               </motion.p>
@@ -143,7 +157,7 @@ export default function HeroBannerCarousel({
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, delay: 0.32 }}
-                className="mt-4 inline-flex items-center gap-1.5 bg-white text-primary font-semibold text-sm px-4 py-2 rounded-full hover:bg-white/90 transition-colors shadow-lg"
+                className="mt-4 sm:mt-5 inline-flex items-center gap-1.5 sm:gap-2 bg-white text-primary font-semibold text-sm sm:text-base px-4 sm:px-5 lg:px-6 py-2 sm:py-2.5 lg:py-3 rounded-full hover:bg-white/90 transition-colors shadow-lg"
               >
                 {lang === "ar" ? "اكتشف المزيد" : "Explore"}
                 <span className={isRTL ? "rotate-180 inline-block" : ""}>→</span>
@@ -159,18 +173,18 @@ export default function HeroBannerCarousel({
           <button
             onClick={prev}
             aria-label="Previous slide"
-            className="absolute top-1/2 -translate-y-1/2 start-3 z-20 w-8 h-8 rounded-full bg-black/30 hover:bg-black/50 text-white flex items-center justify-center backdrop-blur-sm transition-colors"
+            className="absolute top-1/2 -translate-y-1/2 start-2 sm:start-4 lg:start-5 z-20 w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 rounded-full bg-black/30 hover:bg-black/50 text-white flex items-center justify-center backdrop-blur-sm transition-colors"
           >
-            <svg className={`w-4 h-4 ${isRTL ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className={`w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 ${isRTL ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
           </button>
           <button
             onClick={next}
             aria-label="Next slide"
-            className="absolute top-1/2 -translate-y-1/2 end-3 z-20 w-8 h-8 rounded-full bg-black/30 hover:bg-black/50 text-white flex items-center justify-center backdrop-blur-sm transition-colors"
+            className="absolute top-1/2 -translate-y-1/2 end-2 sm:end-4 lg:end-5 z-20 w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 rounded-full bg-black/30 hover:bg-black/50 text-white flex items-center justify-center backdrop-blur-sm transition-colors"
           >
-            <svg className={`w-4 h-4 ${isRTL ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className={`w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 ${isRTL ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
           </button>
@@ -179,7 +193,7 @@ export default function HeroBannerCarousel({
 
       {/* Dot indicators */}
       {total > 1 && (
-        <div className="absolute bottom-3 inset-x-0 z-20 flex justify-center gap-1.5">
+        <div className="absolute bottom-3 sm:bottom-4 lg:bottom-5 inset-x-0 z-20 flex justify-center gap-1.5 sm:gap-2">
           {activeBanners.map((_, i) => (
             <button
               key={i}
@@ -187,8 +201,8 @@ export default function HeroBannerCarousel({
               aria-label={`Go to slide ${i + 1}`}
               className={`transition-all duration-300 rounded-full ${
                 i === current
-                  ? "w-5 h-1.5 bg-white"
-                  : "w-1.5 h-1.5 bg-white/50 hover:bg-white/80"
+                  ? "w-5 sm:w-6 lg:w-7 h-1.5 sm:h-2 bg-white"
+                  : "w-1.5 sm:w-2 h-1.5 sm:h-2 bg-white/50 hover:bg-white/80"
               }`}
             />
           ))}
@@ -199,7 +213,7 @@ export default function HeroBannerCarousel({
       {total > 1 && !paused && (
         <motion.div
           key={`progress-${current}`}
-          className="absolute bottom-0 start-0 h-0.5 bg-white/60 z-20"
+          className="absolute bottom-0 start-0 h-0.5 sm:h-1 bg-white/60 z-20"
           initial={{ width: "0%" }}
           animate={{ width: "100%" }}
           transition={{ duration: interval / 1000, ease: "linear" }}

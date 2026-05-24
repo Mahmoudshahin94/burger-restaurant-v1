@@ -1,13 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
+import ImageUpload from "./ImageUpload";
 import type { Category } from "@/types";
 
 interface FormData {
   name_en: string;
   name_ar: string;
   icon: string;
+  image: string;
   order: number;
   active: boolean;
 }
@@ -30,12 +32,14 @@ export default function CategoryForm({
   const {
     register,
     handleSubmit,
+    control,
     formState: { errors, isSubmitting },
   } = useForm<FormData>({
     defaultValues: {
       name_en: initialData?.name_en ?? "",
       name_ar: initialData?.name_ar ?? "",
       icon: initialData?.icon ?? "",
+      image: initialData?.image ?? "",
       order: initialData?.order ?? 1,
       active: initialData?.active ?? true,
     },
@@ -89,13 +93,31 @@ export default function CategoryForm({
         />
       </Field>
 
+      {/* Category Image */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Category Image
+        </label>
+        <p className="text-xs text-gray-500 mb-2">
+          Upload an image to represent this category. If no image is provided, the icon/emoji will be used.
+        </p>
+        <Controller
+          name="image"
+          control={control}
+          render={({ field }) => (
+            <ImageUpload value={field.value} onChange={field.onChange} />
+          )}
+        />
+      </div>
+
       <div className="grid grid-cols-2 gap-4">
-        <Field label="Icon (emoji)" error={errors.icon?.message}>
+        <Field label="Icon (emoji fallback)" error={errors.icon?.message}>
           <input
             {...register("icon")}
             placeholder="☕"
             className={`${inputClass} text-center text-xl`}
           />
+          <p className="text-xs text-gray-500 mt-1">Used if no image is set</p>
         </Field>
 
         <Field label="Display Order" error={errors.order?.message}>

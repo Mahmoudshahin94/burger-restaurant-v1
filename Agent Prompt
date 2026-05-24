@@ -1,0 +1,24 @@
+Public Menu (/)
+Menu branding with the logo, red header, and bilingual tagline
+Arabic/English toggle — switches RTL/LTR dynamically, persisted in localStorage
+Category tabs — scrollable horizontal tabs: ☕ Hot Drinks, 🧊 Cold, 🥤 Milkshake, 🍓 Smoothie, 🍊 Juice, 🍹 Cocktails, 🌿 Mojito, 🍰 Sweets
+Real-time search — filters items by both Arabic and English name
+Item cards — show both S/L prices, availability badge, lazy-loaded images, framer-motion animations
+Admin Panel (/admin/login → /admin/dashboard)
+Login — username: admin, password: set in .env.local (ADMIN_PASSWORD)
+Dashboard — live stats + one-click "Load sample menu data" button to seed all 60+ items from your menu images
+Categories — add/edit/delete/toggle-active, with emoji icons and display order
+Items — full CRUD with category assignment, S/L pricing, Cloudinary image upload, availability toggle
+Settings — custom logo URL + default language
+QR Code — renders QR with your logo in center, downloads as PNG
+Key details
+InstantDB App ID 4a86cbee-44d0-49db-b911-09c3a6985bf4 is already configured
+Admin credentials are in .env.local (change ADMIN_PASSWORD before going live)
+Update NEXT_PUBLIC_SITE_URL to your live domain before generating the final QR code
+Cloudinary image upload works once you add NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME and NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET — otherwise admins can paste image URLs manually
+
+
+http://localhost:3000/admin/dashboard
+
+to run server : npm run dev
+e2.(copy the https link report in agent) and I just created this github repo, I want you to commit my code here, and then I want you to deploy it to vercel. use the vercel CLI to do so

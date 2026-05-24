@@ -2,32 +2,65 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ─── Design Tokens ──────────────────────────────── */
+/* ─── Design Tokens (Minimal Luxury) ────────────────── */
 :root {
-  --color-bg: #FAFAF7;
+  /* Refined luxury color palette */
+  --color-bg: #FEFEFE;
   --color-surface: #FFFFFF;
-  --color-surface-2: #F5EDE0;
-  --color-border: #EDE5D8;
-  --color-ink: #1A0E07;
-  --color-ink-2: #7A6355;
-  --color-ink-3: #B09A85;
-  --color-primary: #CC0000;
-  --color-primary-dark: #AA0000;
+  --color-surface-2: #F8F8F8;
+  --color-surface-3: #F3F4F6;
+  --color-border: #E5E7EB;
+  --color-border-light: rgba(0, 0, 0, 0.04);
+  --color-ink: #0A0A0A;
+  --color-ink-2: #525252;
+  --color-ink-3: #9CA3AF;
+  --color-primary: #DC2626;
+  --color-primary-dark: #B91C1C;
+  --color-accent-gold: #D4AF37;
+
+  /* Luxury shadow system */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.04);
+  --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.06);
+  --shadow-card-hover: 0 20px 50px rgba(0, 0, 0, 0.12);
+  --shadow-luxury: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
+  --shadow-glow: 0 0 40px rgba(220, 38, 38, 0.08);
 
   --header-height: 64px;
-  --categories-height: 148px;
+  --categories-height: 132px;
+}
+
+@media (min-width: 640px) {
+  :root {
+    --header-height: 68px;
+    --categories-height: 148px;
+  }
+}
+
+@media (min-width: 1024px) {
+  :root {
+    --header-height: 72px;
+    --categories-height: 164px;
+  }
 }
 
 .dark {
-  --color-bg: #0F0A07;
-  --color-surface: #1C1007;
-  --color-surface-2: #2C1A0E;
-  --color-border: #3D2A1A;
-  --color-ink: #F5EAD7;
-  --color-ink-2: #C4A480;
-  --color-ink-3: #8A6E52;
-  --color-primary: #E53535;
-  --color-primary-dark: #FF4444;
+  --color-bg: #0A0A0A;
+  --color-surface: #141414;
+  --color-surface-2: #1F1F1F;
+  --color-surface-3: #262626;
+  --color-border: #2E2E2E;
+  --color-border-light: rgba(255, 255, 255, 0.06);
+  --color-ink: #FAFAFA;
+  --color-ink-2: #A3A3A3;
+  --color-ink-3: #737373;
+  --color-primary: #EF4444;
+  --color-primary-dark: #DC2626;
+
+  --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.3);
+  --shadow-card-hover: 0 20px 50px rgba(0, 0, 0, 0.4);
+  --shadow-luxury: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  --shadow-glow: 0 0 40px rgba(239, 68, 68, 0.15);
 }
 
 /* ─── Base ──────────────────────────────────────── */
@@ -68,54 +101,142 @@ body {
 }
 .scrollbar-hide::-webkit-scrollbar { display: none; }
 
-/* ─── Glass header ───────────────────────────────── */
+/* ─── Glass header (Refined) ────────────────────────── */
 .glass-header {
-  background: rgba(250, 250, 247, 0.88);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border-bottom: 1px solid rgba(237, 229, 216, 0.8);
+  background: rgba(254, 254, 254, 0.85);
+  backdrop-filter: blur(20px) saturate(1.8);
+  -webkit-backdrop-filter: blur(20px) saturate(1.8);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
 }
 .dark .glass-header {
-  background: rgba(15, 10, 7, 0.88);
-  border-bottom: 1px solid rgba(61, 42, 26, 0.8);
+  background: rgba(10, 10, 10, 0.85);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-/* ─── Hero section ───────────────────────────────── */
+/* ─── Mesh Gradient Background ──────────────────────── */
+.mesh-gradient {
+  background: 
+    radial-gradient(at 40% 20%, rgba(220, 38, 38, 0.07) 0px, transparent 50%),
+    radial-gradient(at 80% 0%, rgba(212, 175, 55, 0.05) 0px, transparent 50%),
+    radial-gradient(at 0% 50%, rgba(220, 38, 38, 0.03) 0px, transparent 50%),
+    radial-gradient(at 80% 100%, rgba(0, 0, 0, 0.02) 0px, transparent 50%),
+    linear-gradient(180deg, var(--color-bg) 0%, var(--color-surface-2) 100%);
+  background-size: 100% 100%;
+  animation: meshMove 25s ease-in-out infinite;
+}
+.dark .mesh-gradient {
+  background: 
+    radial-gradient(at 40% 20%, rgba(239, 68, 68, 0.12) 0px, transparent 50%),
+    radial-gradient(at 80% 0%, rgba(212, 175, 55, 0.08) 0px, transparent 50%),
+    radial-gradient(at 0% 50%, rgba(239, 68, 68, 0.06) 0px, transparent 50%),
+    radial-gradient(at 80% 100%, rgba(255, 255, 255, 0.02) 0px, transparent 50%),
+    linear-gradient(180deg, var(--color-bg) 0%, var(--color-surface-2) 100%);
+}
+
+@keyframes meshMove {
+  0%, 100% { 
+    background-position: 0% 0%, 100% 0%, 0% 100%, 100% 100%, 0% 0%; 
+  }
+  25% { 
+    background-position: 50% 50%, 50% 0%, 50% 50%, 50% 100%, 0% 0%; 
+  }
+  50% { 
+    background-position: 100% 100%, 0% 100%, 100% 0%, 0% 0%, 0% 0%; 
+  }
+  75% { 
+    background-position: 50% 50%, 50% 100%, 50% 50%, 50% 0%, 0% 0%; 
+  }
+}
+
+/* ─── Header icon button (Refined) ───────────────────── */
+.header-icon-btn {
+  width: 38px;
+  height: 38px;
+  min-width: 38px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.header-icon-btn:active {
+  transform: scale(0.95);
+}
+@media (min-width: 640px) {
+  .header-icon-btn {
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    border-radius: 12px;
+  }
+}
+
+/* ─── Header divider ─────────────────────────────── */
+.header-divider {
+  width: 1px;
+  height: 24px;
+  background: var(--color-border);
+  opacity: 0.6;
+  margin: 0 4px;
+  flex-shrink: 0;
+}
+@media (max-width: 639px) {
+  .header-divider {
+    height: 20px;
+    margin: 0 2px;
+  }
+}
+
+/* ─── Hero section (Luxury) ──────────────────────────── */
 .hero-section {
   position: relative;
   overflow: hidden;
-  background: linear-gradient(180deg, #FEF9F0 0%, #FAF5EB 50%, #FAF7F2 80%, transparent 100%);
-  padding-top: 2.5rem;
-  padding-bottom: 2rem;
+  padding-top: 3rem;
+  padding-bottom: 2.5rem;
 }
-.dark .hero-section {
-  background: linear-gradient(180deg, #1E120A 0%, #170D06 50%, #110A04 80%, transparent 100%);
+@media (min-width: 640px) {
+  .hero-section {
+    padding-top: 4rem;
+    padding-bottom: 3rem;
+  }
+}
+@media (min-width: 1024px) {
+  .hero-section {
+    padding-top: 5rem;
+    padding-bottom: 4rem;
+  }
 }
 
-/* Decorative circles in hero */
-.hero-glow {
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(60px);
-  opacity: 0.4;
-  pointer-events: none;
-}
-
-/* ─── Hero logo container ────────────────────────── */
+/* ─── Hero logo container (Luxury) ───────────────────── */
 .hero-logo-wrap {
-  width: 200px;
-  height: 200px;
+  width: 140px;
+  height: 140px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   position: relative;
-  /* Subtle warm glow ring — no white background needed (logo is transparent) */
-  background: radial-gradient(circle at center, rgba(204, 80, 20, 0.08) 0%, transparent 75%);
-  animation: heroLogoIn 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  background: var(--color-surface);
+  box-shadow: var(--shadow-luxury);
+  animation: heroLogoIn 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+@media (min-width: 640px) {
+  .hero-logo-wrap {
+    width: 160px;
+    height: 160px;
+  }
+}
+@media (min-width: 1024px) {
+  .hero-logo-wrap {
+    width: 180px;
+    height: 180px;
+  }
 }
 .dark .hero-logo-wrap {
-  background: radial-gradient(circle at center, rgba(204, 60, 20, 0.15) 0%, transparent 75%);
+  background: var(--color-surface-2);
+  box-shadow: var(--shadow-luxury), var(--shadow-glow);
 }
 
 /* Compact logo in header */
@@ -128,70 +249,108 @@ body {
   100% { opacity: 1; transform: scale(1) translateY(0); }
 }
 
-/* ─── Card ───────────────────────────────────────── */
+/* ─── Card (Luxury Elevated) ─────────────────────────── */
 .menu-card {
-  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.25s ease;
-  will-change: transform;
-  cursor: default;
+  box-shadow: var(--shadow-card);
+  border: 1px solid var(--color-border-light);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform, box-shadow;
+  cursor: pointer;
 }
-.menu-card:hover {
-  transform: translateY(-6px) scale(1.015);
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.13), 0 4px 12px rgba(204, 0, 0, 0.06);
+@media (hover: hover) {
+  .menu-card:hover {
+    transform: translateY(-8px);
+    box-shadow: var(--shadow-card-hover);
+    border-color: transparent;
+  }
+  .menu-card:hover .menu-card-image {
+    transform: scale(1.08);
+  }
 }
-.dark .menu-card:hover {
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55), 0 4px 12px rgba(204, 0, 0, 0.15);
+@media (min-width: 1024px) {
+  .menu-card:hover {
+    transform: translateY(-10px);
+  }
 }
 .menu-card:active {
-  transform: scale(0.97);
+  transform: scale(0.98);
+  transition-duration: 0.1s;
 }
 
-/* ─── Category card ──────────────────────────────── */
-.cat-card {
-  flex-shrink: 0;
-  width: 96px;
-  min-height: 116px;
-  border-radius: 20px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-end;
-  padding: 0 0.5rem 0.75rem;
-  gap: 0.25rem;
-  cursor: pointer;
-  position: relative;
-  transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.22s ease;
-  user-select: none;
-  -webkit-tap-highlight-color: transparent;
-  overflow: hidden;
-  border: 2px solid transparent;
-}
-.cat-card:hover {
-  transform: translateY(-4px) scale(1.04);
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.18);
-}
-.cat-card:active {
-  transform: scale(0.95);
-}
-.cat-card.active {
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(204, 0, 0, 0.15), 0 8px 24px rgba(204, 0, 0, 0.2);
-  transform: translateY(-2px) scale(1.04);
+/* Image zoom effect inside cards */
+.menu-card-image {
+  transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* ─── Skeleton loader ────────────────────────────── */
+/* ─── Category card (Luxury Minimal) ─────────────────── */
+/* ─── Category Tabs (Clean Circular Design) ─────────── */
+/* Using Tailwind classes directly in component for cleaner approach */
+
+/* ─── Skeleton loader (Refined) ──────────────────────── */
 .skeleton {
   background: linear-gradient(
     90deg,
     var(--color-surface-2) 25%,
-    var(--color-border) 50%,
+    var(--color-surface-3) 50%,
     var(--color-surface-2) 75%
   );
   background-size: 200% 100%;
-  animation: shimmer 1.6s infinite;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: 8px;
 }
 @keyframes shimmer {
   0%   { background-position: 200% 0; }
   100% { background-position: -200% 0; }
+}
+
+/* ─── Button ripple effect ───────────────────────────── */
+.btn-luxury {
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.btn-luxury::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  transition: width 0.6s ease, height 0.6s ease;
+}
+.btn-luxury:active::before {
+  width: 300px;
+  height: 300px;
+}
+@media (hover: hover) {
+  .btn-luxury:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-card);
+  }
+}
+.btn-luxury:active {
+  transform: scale(0.98);
+}
+
+/* ─── Link hover underline animation ─────────────────── */
+.link-underline {
+  position: relative;
+}
+.link-underline::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 0;
+  height: 1px;
+  background: currentColor;
+  transition: width 0.3s ease;
+}
+.link-underline:hover::after {
+  width: 100%;
 }
 
 /* ─── Category pill (legacy) ──────────────────────── */
@@ -200,11 +359,15 @@ body {
 }
 .cat-pill:active { transform: scale(0.95); }
 
-/* ─── Price badge ────────────────────────────────── */
+/* ─── Price badge (Luxury) ───────────────────────────── */
 .price-badge {
-  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
-  color: var(--color-primary);
+  background: var(--color-surface-2);
+  color: var(--color-ink);
   font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.price-badge-accent {
+  color: var(--color-primary);
 }
 
 /* ─── Item size selector active state ────────────── */
@@ -238,12 +401,13 @@ body {
   background: color-mix(in srgb, var(--color-primary) 20%, transparent);
 }
 
-/* ─── Item image shimmer overlay ─────────────────── */
+/* ─── Item image overlay (Luxury) ────────────────────── */
 .img-overlay {
   background: linear-gradient(
     to top,
-    rgba(20, 10, 5, 0.35) 0%,
-    transparent 60%
+    rgba(0, 0, 0, 0.4) 0%,
+    rgba(0, 0, 0, 0.1) 40%,
+    transparent 70%
   );
 }
 

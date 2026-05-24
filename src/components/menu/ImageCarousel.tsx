@@ -132,7 +132,7 @@ export default function ImageCarousel({
                       sizes="100vw"
                       aria-hidden
                       className="object-cover scale-110 blur-xl brightness-50 saturate-150"
-                      unoptimized={src.startsWith("data:")}
+                      unoptimized={src.startsWith("http") || src.startsWith("data:")}
                     />
                   )}
                   <Image
@@ -141,7 +141,7 @@ export default function ImageCarousel({
                     fill
                     sizes="(max-width: 768px) 100vw, 50vw"
                     className={objectFit === "contain" ? "object-contain relative z-10" : "object-cover"}
-                    unoptimized={src.startsWith("data:")}
+                    unoptimized={src.startsWith("http") || src.startsWith("data:")}
                     onError={() =>
                       setImgErrors((prev) => {
                         const next = new Set(prev);
@@ -240,7 +240,7 @@ export default function ImageCarousel({
                   fill
                   sizes="56px"
                   className="object-cover"
-                  unoptimized={src.startsWith("data:")}
+                  unoptimized={src.startsWith("http") || src.startsWith("data:")}
                 />
               )}
             </button>

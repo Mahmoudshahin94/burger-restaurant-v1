@@ -1,9 +1,10 @@
 "use client";
 
+import { useMemo } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { signOut } from "next-auth/react";
 import Image from "next/image";
+import { createClient } from "@/lib/supabase/client";
 
 interface NavItem {
   href: string;
@@ -80,13 +81,50 @@ function LogoutIcon() {
   );
 }
 
+function OrderIcon() {
+  return (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+        d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+    </svg>
+  );
+}
+function ReportIcon() {
+  return (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+        d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+    </svg>
+  );
+}
+function CustomersIcon() {
+  return (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+        d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+    </svg>
+  );
+}
+function MigrateIcon() {
+  return (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+        d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+    </svg>
+  );
+}
+
 const navItems: NavItem[] = [
   { href: "/admin/dashboard", label: "Dashboard", icon: <DashIcon />, exact: true },
+  { href: "/admin/dashboard/orders", label: "Orders", icon: <OrderIcon /> },
   { href: "/admin/dashboard/banners", label: "Banners", icon: <BannerIcon /> },
   { href: "/admin/dashboard/categories", label: "Categories", icon: <CatIcon /> },
-  { href: "/admin/dashboard/items", label: "Menu Items", icon: <MenuIcon /> },
+  { href: "/admin/dashboard/items", label: "Products", icon: <MenuIcon /> },
+  { href: "/admin/dashboard/customers", label: "Customers", icon: <CustomersIcon /> },
+  { href: "/admin/dashboard/reports", label: "Reports", icon: <ReportIcon /> },
   { href: "/admin/dashboard/settings", label: "Settings", icon: <SettingsIcon /> },
   { href: "/admin/dashboard/qrcode", label: "QR Code", icon: <QrIcon /> },
+  { href: "/admin/dashboard/migrate", label: "Migrate Data", icon: <MigrateIcon /> },
 ];
 
 interface AdminSidebarProps {
@@ -95,6 +133,13 @@ interface AdminSidebarProps {
 
 export default function AdminSidebar({ onClose }: AdminSidebarProps) {
   const pathname = usePathname();
+  const supabase = useMemo(() => createClient(), []);
+
+  async function handleSignOut() {
+    await supabase.auth.signOut();
+    // Use hard redirect to ensure cookies are cleared before navigation
+    window.location.href = "/";
+  }
 
   return (
     <div className="h-full flex flex-col bg-brand-espresso text-white w-64 border-r border-white/[0.06]">
@@ -149,7 +194,7 @@ export default function AdminSidebar({ onClose }: AdminSidebarProps) {
           View Menu
         </Link>
         <button
-          onClick={() => signOut({ callbackUrl: "/admin/login" })}
+          onClick={handleSignOut}
           className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-white/50 hover:text-red-400 hover:bg-red-500/10 transition-all duration-150"
         >
           <span className="flex-shrink-0"><LogoutIcon /></span>

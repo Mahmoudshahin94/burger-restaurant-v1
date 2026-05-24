@@ -30,6 +30,9 @@ const config: Config = {
           cream: "#FAF7F2",
         },
       },
+      ringOffsetColor: {
+        bg: "var(--color-bg)",
+      },
       fontFamily: {
         poppins: ["var(--font-poppins)", "system-ui", "sans-serif"],
         cairo: ["var(--font-cairo)", "Tahoma", "Arial", "sans-serif"],

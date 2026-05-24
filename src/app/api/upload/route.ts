@@ -4,7 +4,7 @@ import crypto from "crypto";
 export async function POST(req: NextRequest) {
   try {
     const formData = await req.formData();
-    const file = formData.get("file") as File | null;
+    const file = (formData as unknown as { get(key: string): File | null }).get("file");
 
     if (!file) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 });

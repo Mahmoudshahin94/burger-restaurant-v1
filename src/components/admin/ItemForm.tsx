@@ -47,7 +47,7 @@ export default function ItemForm({
         .map((img) => ({
           key: img.id,
           url: img.image,
-          isPrimary: img.is_primary,
+          isPrimary: img.is_primary ?? false,
         }));
     }
     // Migrate legacy single image if present
@@ -186,7 +186,7 @@ export default function ItemForm({
         <select {...register("category_id")} className={inputClass}>
           <option value="">— No category —</option>
           {categories
-            .sort((a, b) => a.order - b.order)
+            .sort((a, b) => (a.sort_order ?? a.order ?? 0) - (b.sort_order ?? b.order ?? 0))
             .map((cat) => (
               <option key={cat.id} value={cat.id}>
                 {cat.icon} {cat.name_en} / {cat.name_ar}

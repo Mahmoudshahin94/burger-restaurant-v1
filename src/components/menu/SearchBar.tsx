@@ -1,22 +1,33 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useLanguage } from "@/context/LanguageContext";
 
 interface SearchBarProps {
   value: string;
   onChange: (value: string) => void;
+  autoFocus?: boolean;
 }
 
-export default function SearchBar({ value, onChange }: SearchBarProps) {
+export default function SearchBar({ value, onChange, autoFocus = true }: SearchBarProps) {
   const { t, isRTL } = useLanguage();
   const inputRef = useRef<HTMLInputElement>(null);
 
+  useEffect(() => {
+    if (autoFocus && inputRef.current) {
+      const timeout = setTimeout(() => {
+        inputRef.current?.focus();
+      }, 100);
+      return () => clearTimeout(timeout);
+    }
+  }, [autoFocus]);
+
   return (
     <motion.div
-      initial={{ opacity: 0, y: -6 }}
+      initial={{ opacity: 0, y: -8 }}
       animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.2, ease: "easeOut" }}
       className="relative"
     >
       {/* Search icon */}
@@ -26,7 +37,7 @@ export default function SearchBar({ value, onChange }: SearchBarProps) {
         }`}
       >
         <svg
-          className="w-4 h-4 text-ink-3"
+          className="w-[18px] h-[18px] text-ink-3"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -47,8 +58,8 @@ export default function SearchBar({ value, onChange }: SearchBarProps) {
         onChange={(e) => onChange(e.target.value)}
         placeholder={t("search_placeholder")}
         dir={isRTL ? "rtl" : "ltr"}
-        className={`w-full bg-surface border border-border rounded-2xl py-3 text-sm text-ink placeholder-ink-3 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all shadow-sm ${
-          isRTL ? "pr-11 pl-10" : "pl-11 pr-10"
+        className={`w-full bg-surface border border-border rounded-2xl py-3.5 text-base text-ink placeholder-ink-3 focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary transition-all shadow-sm ${
+          isRTL ? "pr-12 pl-11" : "pl-12 pr-11"
         }`}
       />
 
@@ -62,11 +73,11 @@ export default function SearchBar({ value, onChange }: SearchBarProps) {
             onChange("");
             inputRef.current?.focus();
           }}
-          className={`absolute inset-y-0 flex items-center ${isRTL ? "left-3" : "right-3"}`}
+          className={`absolute inset-y-0 flex items-center ${isRTL ? "left-3.5" : "right-3.5"}`}
         >
-          <span className="w-5 h-5 rounded-full bg-ink-3/20 flex items-center justify-center hover:bg-ink-3/40 transition-colors">
+          <span className="w-6 h-6 rounded-full bg-ink-3/20 flex items-center justify-center hover:bg-ink-3/40 active:scale-95 transition-all">
             <svg
-              className="w-3 h-3 text-ink-2"
+              className="w-3.5 h-3.5 text-ink-2"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
