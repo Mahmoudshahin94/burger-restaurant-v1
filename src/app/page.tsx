@@ -1,8 +1,8 @@
 import MenuPage from "@/components/menu/MenuPage";
 
 export const metadata = {
-  title: "JudyTech — Menu",
-  description: "Browse the digital menu — drinks, sweets, and more.",
+  title: "Your Burger — Menu",
+  description: "Browse our menu — burgers, pizza, salads and more.",
 };
 
 export default function Home() {

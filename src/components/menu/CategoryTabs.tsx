@@ -37,7 +37,7 @@ export default function CategoryTabs({ categories, activeId, onSelect }: Categor
   return (
     <div
       ref={scrollRef}
-      className="flex gap-5 sm:gap-6 lg:gap-8 overflow-x-auto scrollbar-hide py-4 sm:py-5 px-4 sm:px-6 lg:px-8"
+      className="flex gap-4 sm:gap-5 lg:gap-6 overflow-x-auto scrollbar-hide py-5 sm:py-6 px-4 sm:px-6 lg:px-8"
     >
       {/* "All" card */}
       <CategoryCard
@@ -88,53 +88,68 @@ const CategoryCard = forwardRef<HTMLButtonElement, CardProps>(function CategoryC
       ref={ref}
       onClick={onClick}
       aria-pressed={isActive}
-      className="flex flex-col items-center gap-2 sm:gap-2.5 flex-shrink-0 group"
+      className="flex flex-col items-center gap-2.5 sm:gap-3 flex-shrink-0 group"
     >
-      {/* Circular Image/Icon Container */}
+      {/* Circular Image/Icon Container - Larger sizes */}
       <div 
         className={`
-          relative w-14 h-14 sm:w-16 sm:h-16 lg:w-[72px] lg:h-[72px] rounded-full 
+          category-circle relative overflow-hidden
+          w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 
+          rounded-full 
           transition-all duration-300 ease-out
           ${isActive 
-            ? "ring-2 ring-primary ring-offset-2 ring-offset-bg scale-105" 
-            : "ring-1 ring-border hover:ring-2 hover:ring-ink-3/30 hover:scale-105"
+            ? "ring-[3px] ring-primary ring-offset-[3px] ring-offset-bg scale-105 shadow-lg" 
+            : "ring-2 ring-border/50 hover:ring-primary/40 hover:scale-105 hover:shadow-md"
           }
         `}
       >
         {hasImage ? (
-          <Image
-            src={image}
-            alt={name}
-            fill
-            sizes="72px"
-            className="object-cover rounded-full"
-            unoptimized={image.startsWith("http")}
-          />
+          <>
+            <Image
+              src={image}
+              alt={name}
+              fill
+              sizes="(max-width: 640px) 64px, (max-width: 1024px) 80px, 96px"
+              className="object-cover rounded-full transition-transform duration-500 group-hover:scale-110"
+              unoptimized={image.startsWith("http")}
+            />
+            {/* Dark gradient overlay for better contrast */}
+            <div className={`
+              absolute inset-0 rounded-full transition-opacity duration-300
+              ${isActive 
+                ? "bg-gradient-to-t from-primary/30 via-transparent to-transparent" 
+                : "bg-gradient-to-t from-black/25 via-transparent to-transparent group-hover:from-black/35"
+              }
+            `} />
+          </>
         ) : icon ? (
           <div className={`
             w-full h-full rounded-full flex items-center justify-center
-            ${isActive ? "bg-primary" : "bg-surface-2"}
-            transition-colors duration-300
+            transition-all duration-300
+            ${isActive 
+              ? "bg-primary shadow-inner" 
+              : "bg-surface-2 group-hover:bg-surface-3"
+            }
           `}>
             <span className={`
-              text-2xl sm:text-[28px] lg:text-[32px] leading-none
+              text-2xl sm:text-3xl lg:text-4xl leading-none
               transition-all duration-300
-              ${isActive ? "scale-110 brightness-0 invert" : ""}
+              ${isActive ? "scale-110 brightness-0 invert" : "group-hover:scale-110"}
             `}>
               {icon}
             </span>
           </div>
         ) : (
-          <div className="w-full h-full rounded-full bg-surface-2 flex items-center justify-center">
-            <span className="text-ink-3 text-lg">📁</span>
+          <div className="w-full h-full rounded-full bg-surface-2 flex items-center justify-center group-hover:bg-surface-3 transition-colors duration-300">
+            <span className="text-ink-3 text-xl sm:text-2xl lg:text-3xl">📁</span>
           </div>
         )}
       </div>
 
-      {/* Name */}
+      {/* Name - Slightly larger text */}
       <span className={`
-        text-center text-[11px] sm:text-xs lg:text-[13px] font-medium leading-tight
-        transition-colors duration-300 max-w-[70px] sm:max-w-[80px] line-clamp-2
+        text-center text-xs sm:text-[13px] lg:text-sm font-medium leading-tight
+        transition-colors duration-300 max-w-[72px] sm:max-w-[88px] lg:max-w-[100px] line-clamp-2
         ${isActive ? "text-primary font-semibold" : "text-ink-2 group-hover:text-ink"}
       `}>
         {name}

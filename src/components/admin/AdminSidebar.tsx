@@ -113,6 +113,14 @@ function MigrateIcon() {
     </svg>
   );
 }
+function SeedIcon() {
+  return (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+        d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
+    </svg>
+  );
+}
 
 const navItems: NavItem[] = [
   { href: "/admin/dashboard", label: "Dashboard", icon: <DashIcon />, exact: true },
@@ -125,6 +133,7 @@ const navItems: NavItem[] = [
   { href: "/admin/dashboard/settings", label: "Settings", icon: <SettingsIcon /> },
   { href: "/admin/dashboard/qrcode", label: "QR Code", icon: <QrIcon /> },
   { href: "/admin/dashboard/migrate", label: "Migrate Data", icon: <MigrateIcon /> },
+  { href: "/admin/dashboard/seed-demo", label: "Seed Demo", icon: <SeedIcon /> },
 ];
 
 interface AdminSidebarProps {
@@ -147,10 +156,10 @@ export default function AdminSidebar({ onClose }: AdminSidebarProps) {
       <div className="p-5 border-b border-white/10">
         <div className="flex items-center gap-3">
           <div className="relative w-16 h-16 rounded-xl overflow-hidden bg-white/10 border border-white/20 flex-shrink-0">
-            <Image src="/logo.png" alt="JudyTech" fill className="object-contain p-1" sizes="64px" />
+            <Image src="/logo.svg" alt="Your Burger" fill className="object-contain p-1" sizes="64px" />
           </div>
           <div>
-            <p className="font-bold text-white text-sm leading-tight">Judy Tech</p>
+            <p className="font-bold text-white text-sm leading-tight">Your Burger</p>
             <p className="text-white/40 text-[11px] leading-tight">Admin Panel</p>
           </div>
         </div>

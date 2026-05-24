@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <defs>
+    <linearGradient id="burgerGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#F97316;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#EA580C;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="bunTopGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#FBBF24;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#F59E0B;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="bunBottomGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#F59E0B;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#D97706;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Circle background -->
+  <circle cx="100" cy="100" r="95" fill="url(#burgerGrad)"/>
+  
+  <!-- Top bun -->
+  <ellipse cx="100" cy="70" rx="55" ry="30" fill="url(#bunTopGrad)"/>
+  <ellipse cx="100" cy="65" rx="50" ry="22" fill="#FBBF24"/>
+  
+  <!-- Sesame seeds -->
+  <ellipse cx="75" cy="58" rx="4" ry="2.5" fill="#FEF3C7" transform="rotate(-15 75 58)"/>
+  <ellipse cx="100" cy="52" rx="4" ry="2.5" fill="#FEF3C7"/>
+  <ellipse cx="125" cy="58" rx="4" ry="2.5" fill="#FEF3C7" transform="rotate(15 125 58)"/>
+  <ellipse cx="85" cy="68" rx="3.5" ry="2" fill="#FEF3C7" transform="rotate(-10 85 68)"/>
+  <ellipse cx="115" cy="68" rx="3.5" ry="2" fill="#FEF3C7" transform="rotate(10 115 68)"/>
+  
+  <!-- Lettuce -->
+  <path d="M45 95 Q55 85 70 92 Q85 85 100 92 Q115 85 130 92 Q145 85 155 95 L155 100 Q145 92 130 98 Q115 92 100 98 Q85 92 70 98 Q55 92 45 100 Z" fill="#22C55E"/>
+  
+  <!-- Cheese -->
+  <path d="M42 100 L50 110 L70 100 L90 112 L110 100 L130 112 L150 100 L158 110 L158 105 L42 105 Z" fill="#FCD34D"/>
+  
+  <!-- Patty -->
+  <rect x="45" y="105" width="110" height="20" rx="5" fill="#78350F"/>
+  <rect x="48" y="108" width="104" height="14" rx="4" fill="#92400E"/>
+  
+  <!-- Bottom bun -->
+  <ellipse cx="100" cy="140" rx="55" ry="18" fill="url(#bunBottomGrad)"/>
+  <ellipse cx="100" cy="138" rx="52" ry="14" fill="#F59E0B"/>
+  
+  <!-- Text: YOUR BURGER -->
+  <text x="100" y="175" text-anchor="middle" font-family="Arial Black, Arial, sans-serif" font-size="18" font-weight="900" fill="white" letter-spacing="1">YOUR BURGER</text>
+</svg>

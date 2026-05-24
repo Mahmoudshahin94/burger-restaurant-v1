@@ -43,22 +43,27 @@ function normalizeSearch(text: string): string {
 
 function SkeletonCard() {
   return (
-    <div className="bg-surface rounded-2xl sm:rounded-3xl overflow-hidden" style={{ boxShadow: "var(--shadow-card)" }}>
-      <div className="skeleton h-40 sm:h-48 lg:h-56 w-full rounded-none" />
-      <div className="p-4 sm:p-5 lg:p-6 space-y-3">
-        <div className="skeleton h-5 w-3/4" />
-        <div className="skeleton h-3 w-1/2" />
-        <div className="skeleton h-8 w-2/5 mt-4" />
+    <div className="flex flex-col items-center">
+      <div className="skeleton w-32 h-32 sm:w-40 sm:h-40 lg:w-48 lg:h-48 rounded-full mb-3 sm:mb-4" />
+      <div className="w-full px-2 space-y-2 flex flex-col items-center">
+        <div className="skeleton h-4 w-3/4 rounded-full" />
+        <div className="skeleton h-3 w-1/2 rounded-full" />
+        <div className="skeleton h-5 w-2/5 mt-1 rounded-full" />
       </div>
     </div>
   );
 }
 
 function SkeletonCategoryCard() {
-  return <div className="skeleton flex-shrink-0 w-[90px] sm:w-[100px] lg:w-[110px] h-[100px] sm:h-[110px] lg:h-[120px] rounded-2xl" />;
+  return (
+    <div className="flex flex-col items-center gap-2.5 flex-shrink-0">
+      <div className="skeleton w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 rounded-full" />
+      <div className="skeleton h-3 w-14 sm:w-16 lg:w-20 rounded-full" />
+    </div>
+  );
 }
 
-const DEFAULT_BRAND_LOGO = "/logo.png";
+const DEFAULT_BRAND_LOGO = "/logo.svg";
 
 export default function MenuPage() {
   const { t, lang, isRTL } = useLanguage();
@@ -197,11 +202,11 @@ export default function MenuPage() {
         <div className="hero-section flex flex-col items-center py-10 sm:py-12 lg:py-16">
           <div className="skeleton w-40 h-40 sm:w-48 sm:h-48 lg:w-56 lg:h-56 rounded-full" />
         </div>
-        <div className="flex gap-3 px-4 sm:px-6 lg:px-8 py-3 overflow-hidden max-w-7xl mx-auto">
-          {[1, 2, 3, 4, 5, 6, 7].map((i) => <SkeletonCategoryCard key={i} />)}
+        <div className="flex gap-4 sm:gap-5 lg:gap-6 px-4 sm:px-6 lg:px-8 py-5 sm:py-6 overflow-hidden max-w-7xl mx-auto">
+          {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => <SkeletonCategoryCard key={i} />)}
         </div>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5 lg:gap-6">
-          {Array.from({ length: 8 }).map((_, i) => <SkeletonCard key={i} />)}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6 sm:gap-8 lg:gap-10">
+          {Array.from({ length: 10 }).map((_, i) => <SkeletonCard key={i} />)}
         </div>
       </div>
     );
@@ -334,12 +339,31 @@ export default function MenuPage() {
                 if (!cat) return null;
                 return (
                   <div className="flex items-center gap-4 sm:gap-5 mb-8 sm:mb-10">
-                    {cat.icon && <span className="text-4xl sm:text-5xl">{cat.icon}</span>}
+                    {/* Category Image or Icon */}
+                    <div className="relative w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 rounded-2xl overflow-hidden flex-shrink-0 shadow-lg">
+                      {cat.image ? (
+                        <Image
+                          src={cat.image}
+                          alt={lang === "ar" ? cat.name_ar : cat.name_en}
+                          fill
+                          sizes="96px"
+                          className="object-cover"
+                          unoptimized={cat.image.startsWith("http")}
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-gradient-to-br from-primary/10 via-primary/5 to-surface-2 flex items-center justify-center">
+                          <span className="text-3xl sm:text-4xl lg:text-5xl">
+                            {cat.icon || "🍽️"}
+                          </span>
+                        </div>
+                      )}
+                    </div>
                     <div>
-                      <h2 className="text-2xl sm:text-3xl lg:text-4xl font-semibold text-ink leading-tight tracking-tight">
+                      <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-ink leading-tight tracking-tight">
                         {lang === "ar" ? cat.name_ar : cat.name_en}
                       </h2>
-                      <p className="text-ink-3 text-sm sm:text-base mt-1">
+                      <p className="text-ink-3 text-sm sm:text-base mt-1.5 flex items-center gap-2">
+                        <span className="inline-block w-2 h-2 rounded-full bg-primary/60"></span>
                         {filteredItems.length} {lang === "ar" ? "منتج" : "items"}
                       </p>
                     </div>
@@ -353,7 +377,7 @@ export default function MenuPage() {
                   animate={{ opacity: 1, scale: 1 }}
                   className="text-center py-24 sm:py-32"
                 >
-                  <div className="text-7xl sm:text-8xl mb-5 opacity-30">☕</div>
+                  <div className="text-7xl sm:text-8xl mb-5 opacity-30">🍔</div>
                   <p className="text-ink-2 font-semibold text-lg sm:text-xl">{t("no_items")}</p>
                   {search && (
                     <button
@@ -365,7 +389,7 @@ export default function MenuPage() {
                   )}
                 </motion.div>
               ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5 lg:gap-6">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6 sm:gap-8 lg:gap-10">
                   {filteredItems.map((item, i) => (
                     <MenuItemCard
                       key={item.id}
@@ -391,7 +415,7 @@ export default function MenuPage() {
             >
               {groupedByCategory.length === 0 ? (
                 <div className="text-center py-24 sm:py-32">
-                  <div className="text-7xl sm:text-8xl mb-5 opacity-25">☕</div>
+                  <div className="text-7xl sm:text-8xl mb-5 opacity-25">🍔</div>
                   <p className="text-ink-2 font-semibold text-lg sm:text-xl">{t("no_items")}</p>
                   <p className="text-ink-3 text-sm sm:text-base mt-1.5">
                     {lang === "ar"
@@ -410,30 +434,49 @@ export default function MenuPage() {
                     style={{ animationDelay: `${groupIdx * 80}ms` }}
                   >
                     <div className="flex items-center justify-between mb-6 sm:mb-8">
-                      <div className="flex items-center gap-3 sm:gap-4">
-                        {category.icon && (
-                          <span className="text-3xl sm:text-4xl">{category.icon}</span>
-                        )}
+                      <div className="flex items-center gap-4 sm:gap-5">
+                        {/* Category Image or Icon */}
+                        <div className="relative w-14 h-14 sm:w-16 sm:h-16 lg:w-20 lg:h-20 rounded-2xl overflow-hidden flex-shrink-0 shadow-md">
+                          {category.image ? (
+                            <Image
+                              src={category.image}
+                              alt={lang === "ar" ? category.name_ar : category.name_en}
+                              fill
+                              sizes="80px"
+                              className="object-cover"
+                              unoptimized={category.image.startsWith("http")}
+                            />
+                          ) : (
+                            <div className="w-full h-full bg-gradient-to-br from-primary/10 via-primary/5 to-surface-2 flex items-center justify-center">
+                              <span className="text-2xl sm:text-3xl lg:text-4xl">
+                                {category.icon || "🍽️"}
+                              </span>
+                            </div>
+                          )}
+                        </div>
                         <div>
-                          <h2 className="text-xl sm:text-2xl lg:text-3xl font-semibold text-ink leading-tight tracking-tight">
+                          <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-ink leading-tight tracking-tight">
                             {lang === "ar" ? category.name_ar : category.name_en}
                           </h2>
-                          <p className="text-ink-3 text-xs sm:text-sm mt-0.5">
+                          <p className="text-ink-3 text-xs sm:text-sm mt-1 flex items-center gap-1.5">
+                            <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary/60"></span>
                             {catItems.length} {lang === "ar" ? "منتج" : "items"}
                           </p>
                         </div>
                       </div>
                       <button
                         onClick={() => setActiveCategory(category.id)}
-                        className="btn-luxury flex items-center gap-1.5 sm:gap-2 text-ink text-xs sm:text-sm font-medium flex-shrink-0 bg-surface border border-border px-4 sm:px-5 py-2 sm:py-2.5 rounded-full"
+                        className="btn-luxury flex items-center gap-2 text-primary text-xs sm:text-sm font-semibold flex-shrink-0 bg-primary/5 hover:bg-primary/10 border border-primary/20 px-4 sm:px-5 py-2.5 sm:py-3 rounded-full transition-all"
                       >
                         {lang === "ar" ? "عرض الكل" : "View all"}
-                        <span className={`text-ink-3 ${isRTL ? "rotate-180" : ""}`}>→</span>
+                        <svg className={`w-4 h-4 ${isRTL ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
                       </button>
                     </div>
 
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5 lg:gap-6">
-                      {catItems.slice(0, 4).map((item, i) => (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6 sm:gap-8 lg:gap-10">
+                      {catItems.slice(0, 5).map((item, i) => (
                         <MenuItemCard
                           key={item.id}
                           item={item}
@@ -444,14 +487,14 @@ export default function MenuPage() {
                       ))}
                     </div>
 
-                    {catItems.length > 4 && (
+                    {catItems.length > 5 && (
                       <button
                         onClick={() => setActiveCategory(category.id)}
                         className="btn-luxury mt-6 sm:mt-8 w-full py-4 sm:py-5 rounded-2xl bg-surface border border-border text-ink text-sm sm:text-base font-medium hover:border-ink-3 transition-all duration-300"
                       >
                         {lang === "ar"
-                          ? `عرض ${catItems.length - 4} منتج إضافي`
-                          : `Show ${catItems.length - 4} more items`}
+                          ? `عرض ${catItems.length - 5} منتج إضافي`
+                          : `Show ${catItems.length - 5} more items`}
                       </button>
                     )}
                   </section>
