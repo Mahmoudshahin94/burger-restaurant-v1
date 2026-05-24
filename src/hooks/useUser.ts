@@ -10,7 +10,7 @@ let globalUser: User | null = null;
 let globalProfile: Profile | null = null;
 let globalLoading = true;
 let loadStarted = false;
-let listeners: Set<() => void> = new Set();
+const listeners: Set<() => void> = new Set();
 
 function notifyListeners() {
   listeners.forEach(fn => fn());

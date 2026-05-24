@@ -13,7 +13,7 @@ interface Setting {
 
 export default function SettingsPage() {
   const supabase = useMemo(() => createClient(), []);
-  const [settings, setSettings] = useState<Setting[]>([]);
+  const [, setSettings] = useState<Setting[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const [logoUrl, setLogoUrl] = useState("");

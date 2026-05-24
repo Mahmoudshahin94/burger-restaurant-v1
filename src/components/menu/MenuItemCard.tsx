@@ -24,7 +24,7 @@ const PLACEHOLDERS = [
   { from: "#FCE4EC", to: "#F8BBD9", emoji: "🍰" },
 ];
 
-export default function MenuItemCard({ item, index, category, itemImages }: MenuItemCardProps) {
+export default function MenuItemCard({ item, index, itemImages }: MenuItemCardProps) {
   const { lang, t, isRTL } = useLanguage();
   const [imgError, setImgError] = useState(false);
 
