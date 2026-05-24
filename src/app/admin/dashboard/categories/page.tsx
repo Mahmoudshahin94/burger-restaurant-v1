@@ -28,28 +28,30 @@ export default function CategoriesPage() {
   useEffect(() => { fetchCategories(); }, []);
 
   const handleAdd = async (formData: { name_en: string; name_ar: string; icon?: string; image?: string; order: number; active: boolean }) => {
-    await supabase.from("categories").insert({
+    const insertData: { name_en: string; name_ar: string; icon: string; sort_order: number; active: boolean; image?: string } = {
       name_en: formData.name_en,
       name_ar: formData.name_ar,
       icon: formData.icon || "",
-      image: formData.image || null,
       sort_order: formData.order,
       active: formData.active,
-    } as Record<string, unknown>);
+    };
+    if (formData.image) insertData.image = formData.image;
+    await supabase.from("categories").insert(insertData);
     await fetchCategories();
     setShowAdd(false);
   };
 
   const handleEdit = async (formData: { name_en: string; name_ar: string; icon?: string; image?: string; order: number; active: boolean }) => {
     if (!editCategory) return;
-    await supabase.from("categories").update({
+    const updateData: { name_en: string; name_ar: string; icon: string; sort_order: number; active: boolean; image?: string } = {
       name_en: formData.name_en,
       name_ar: formData.name_ar,
       icon: formData.icon || "",
-      image: formData.image || null,
       sort_order: formData.order,
       active: formData.active,
-    }).eq("id", editCategory.id);
+    };
+    if (formData.image) updateData.image = formData.image;
+    await supabase.from("categories").update(updateData).eq("id", editCategory.id);
     await fetchCategories();
     setEditCategory(null);
   };
