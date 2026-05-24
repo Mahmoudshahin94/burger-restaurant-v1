@@ -234,12 +234,14 @@ export default function SeedDemoPage() {
 
     // Create product images
     log("info", "Creating product images...");
-    const productImages = createdProducts.map((prod) => ({
-      product_id: prod.id,
-      image_url: prod.image,
-      is_primary: true,
-      sort_order: 1,
-    }));
+    const productImages = createdProducts
+      .filter((prod) => prod.image)
+      .map((prod) => ({
+        product_id: prod.id,
+        image_url: prod.image as string,
+        is_primary: true,
+        sort_order: 1,
+      }));
 
     const { error: imgErr } = await supabase.from("product_images").insert(productImages);
     if (imgErr) {
