@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { db } from "@/lib/instant/client";
+import { syncInstantAuthCookie } from "@/lib/instant/syncAuthCookie";
 import { useLanguage } from "@/context/LanguageContext";
 
 function GoogleIcon() {
@@ -31,9 +32,18 @@ function LoginContent() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (user) {
-      router.replace(next);
-    }
+    if (!user) return;
+    let cancelled = false;
+    // Wait for the session cookie to actually be set before navigating — the
+    // SDK's own background cookie sync isn't guaranteed to finish before this
+    // effect runs, which would otherwise bounce us right back to login via
+    // middleware (see syncInstantAuthCookie for details).
+    syncInstantAuthCookie(user).then(() => {
+      if (!cancelled) router.replace(next);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [user, next, router]);
 
   async function handleSendCode(e: React.FormEvent) {

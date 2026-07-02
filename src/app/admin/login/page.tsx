@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { db } from "@/lib/instant/client";
+import { syncInstantAuthCookie } from "@/lib/instant/syncAuthCookie";
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -28,7 +29,13 @@ export default function AdminLoginPage() {
     const role = data.profiles?.[0]?.role;
 
     if (role === "admin") {
-      router.replace("/admin/dashboard");
+      // Wait for the session cookie to actually be set before navigating —
+      // the admin dashboard layout verifies it server-side, and the SDK's own
+      // background cookie sync isn't guaranteed to finish before this runs
+      // (see syncInstantAuthCookie for details).
+      syncInstantAuthCookie(user).then(() => {
+        router.replace("/admin/dashboard");
+      });
       return;
     }
 
