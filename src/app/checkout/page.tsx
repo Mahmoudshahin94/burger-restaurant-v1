@@ -5,21 +5,22 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { motion } from "framer-motion";
+import { id } from "@instantdb/react";
+import { db } from "@/lib/instant/client";
 import { useCart } from "@/context/CartContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { useUser } from "@/hooks/useUser";
-import { createClient } from "@/lib/supabase/client";
 import { createOrder } from "@/app/actions/orders";
 import type { Address } from "@/types";
+
+const SETTINGS_KEYS = ["delivery_fee", "free_delivery_threshold", "discounted_delivery_fee"];
 
 export default function CheckoutPage() {
   const { lang, isRTL } = useLanguage();
   const { items, subtotal, clearCart, updateQuantity, removeItem, cartLoaded } = useCart();
-  const { user, loading: userLoading } = useUser();
+  const { user, profile, loading: userLoading } = useUser();
   const router = useRouter();
-  const supabase = useMemo(() => createClient(), []);
 
-  const [addresses, setAddresses] = useState<Address[]>([]);
   const [selectedAddress, setSelectedAddress] = useState<Address | null>(null);
   const [showNewAddress, setShowNewAddress] = useState(false);
   const [notes, setNotes] = useState("");
@@ -36,11 +37,37 @@ export default function CheckoutPage() {
     notes: "",
   });
 
-  const [baseDeliveryFee, setBaseDeliveryFee] = useState(0);
-  const [freeDeliveryThreshold, setFreeDeliveryThreshold] = useState(0);
-  const [discountedDeliveryFee, setDiscountedDeliveryFee] = useState(0);
-  const [settingsLoaded, setSettingsLoaded] = useState(false);
-  
+  const { data: settingsData, isLoading: settingsLoading } = db.useQuery({
+    settings: { $: { where: { key: { $in: SETTINGS_KEYS } } } },
+  });
+
+  const { baseDeliveryFee, freeDeliveryThreshold, discountedDeliveryFee } = useMemo(() => {
+    const rows = settingsData?.settings ?? [];
+    const findValue = (key: string) => rows.find((s) => s.key === key)?.value;
+
+    const feeValue = parseFloat(findValue("delivery_fee") ?? "");
+    const thresholdValue = parseFloat(findValue("free_delivery_threshold") ?? "");
+    const discountedValue = parseFloat(findValue("discounted_delivery_fee") ?? "");
+
+    return {
+      baseDeliveryFee: !isNaN(feeValue) ? feeValue : 0,
+      freeDeliveryThreshold: !isNaN(thresholdValue) ? thresholdValue : 0,
+      discountedDeliveryFee: !isNaN(discountedValue) ? discountedValue : 0,
+    };
+  }, [settingsData]);
+
+  const settingsLoaded = !settingsLoading;
+
+  const { data: addressesData, isLoading: addressesLoading } = db.useQuery(
+    user
+      ? { addresses: { $: { where: { "$user.id": user.id }, order: { is_default: "desc" } } } }
+      : null
+  );
+  const addresses = useMemo(
+    () => (addressesData?.addresses as unknown as Address[]) ?? [],
+    [addressesData]
+  );
+
   const deliveryFee = useMemo(() => {
     if (baseDeliveryFee === 0) return 0;
     if (freeDeliveryThreshold > 0 && subtotal >= freeDeliveryThreshold) {
@@ -62,37 +89,6 @@ export default function CheckoutPage() {
   }, [user, userLoading, router]);
 
   useEffect(() => {
-    async function loadSettings() {
-      const { data } = await supabase
-        .from("settings")
-        .select("key, value")
-        .in("key", ["delivery_fee", "free_delivery_threshold", "discounted_delivery_fee"]);
-      
-      if (data) {
-        const fee = data.find((s) => s.key === "delivery_fee");
-        const threshold = data.find((s) => s.key === "free_delivery_threshold");
-        const discounted = data.find((s) => s.key === "discounted_delivery_fee");
-        
-        if (fee?.value) {
-          const feeValue = parseFloat(fee.value);
-          if (!isNaN(feeValue)) setBaseDeliveryFee(feeValue);
-        }
-        if (threshold?.value) {
-          const thresholdValue = parseFloat(threshold.value);
-          if (!isNaN(thresholdValue)) setFreeDeliveryThreshold(thresholdValue);
-        }
-        if (discounted?.value) {
-          const discountedValue = parseFloat(discounted.value);
-          if (!isNaN(discountedValue)) setDiscountedDeliveryFee(discountedValue);
-        }
-      }
-      setSettingsLoaded(true);
-    }
-    loadSettings();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
     // Only redirect if cart is loaded and empty
     if (cartLoaded && items.length === 0 && !userLoading) {
       router.push("/");
@@ -100,20 +96,14 @@ export default function CheckoutPage() {
   }, [items, cartLoaded, userLoading, router]);
 
   useEffect(() => {
-    async function loadAddresses() {
-      if (!user) return;
-      const { data } = await supabase.from("addresses").select("*").eq("user_id", user.id).order("is_default", { ascending: false });
-      if (data && data.length > 0) {
-        setAddresses(data as Address[]);
-        setSelectedAddress(data.find((a) => a.is_default) ?? data[0] as Address);
-      } else {
-        setShowNewAddress(true);
-      }
+    if (addressesLoading) return;
+    if (addresses.length > 0) {
+      setSelectedAddress((prev) => prev ?? addresses.find((a) => a.is_default) ?? addresses[0]);
+    } else {
+      setShowNewAddress(true);
     }
-    if (user) loadAddresses();
-  // supabase is stable (useMemo), only re-fetch when user changes
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+  }, [addresses, addressesLoading]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -129,23 +119,26 @@ export default function CheckoutPage() {
         return;
       }
 
-      // Save new address
-      if (user) {
-        const { data: savedAddr } = await supabase.from("addresses").insert({
-          user_id: user.id,
-          label: newAddr.label,
-          street: newAddr.street,
-          city: newAddr.city,
-          area: newAddr.area || null,
-          building: newAddr.building || null,
-          floor: newAddr.floor || null,
-          notes: newAddr.notes || null,
-          is_default: addresses.length === 0,
-        }).select().single();
-
-        if (savedAddr) {
-          setAddresses((prev) => [...prev, savedAddr as Address]);
-          setSelectedAddress(savedAddr as Address);
+      // Save new address (reactive `db.useQuery` above will pick it up automatically)
+      if (user && profile) {
+        try {
+          await db.transact(
+            db.tx.addresses[id()]
+              .update({
+                label: newAddr.label,
+                street: newAddr.street,
+                city: newAddr.city,
+                area: newAddr.area || "",
+                building: newAddr.building || "",
+                floor: newAddr.floor || "",
+                notes: newAddr.notes || "",
+                is_default: addresses.length === 0,
+                created_at: new Date().toISOString(),
+              })
+              .link({ profile: profile.id, $user: user.id })
+          );
+        } catch (err) {
+          console.warn("Failed to save address:", err);
         }
       }
 

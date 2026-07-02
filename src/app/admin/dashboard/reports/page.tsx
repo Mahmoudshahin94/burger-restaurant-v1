@@ -1,9 +1,8 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
-import { createClient } from "@/lib/supabase/client";
-import type { Order, OrderItem } from "@/types";
+import { db } from "@/lib/instant/client";
 
 type Period = "today" | "week" | "month" | "all";
 
@@ -38,81 +37,74 @@ function getPeriodRange(period: Period): { from: Date | null; label: string } {
 }
 
 export default function ReportsPage() {
-  const supabase = useMemo(() => createClient(), []);
   const [period, setPeriod] = useState<Period>("month");
-  const [data, setData] = useState<ReportData | null>(null);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    async function fetchReports() {
-      setLoading(true);
-      const { from } = getPeriodRange(period);
+  const { data: queryData, isLoading: loading } = db.useQuery({
+    orders: { order_items: {} },
+  });
 
-      let query = supabase.from("orders").select("*, order_items(*)");
-      if (from) query = query.gte("created_at", from.toISOString());
+  const data = useMemo<ReportData | null>(() => {
+    if (!queryData) return null;
 
-      const { data: orders } = await query;
+    const { from } = getPeriodRange(period);
+    const fromTime = from ? from.getTime() : null;
 
-      if (!orders) {
-        setLoading(false);
-        return;
-      }
+    const allOrders = queryData.orders ?? [];
+    const orders = fromTime
+      ? allOrders.filter((o) => new Date(o.created_at).getTime() >= fromTime)
+      : allOrders;
 
-      const activeOrders = (orders as (Order & { order_items: OrderItem[] })[]).filter((o) => o.status !== "cancelled");
-      const cancelledCount = orders.filter((o) => o.status === "cancelled").length;
+    const activeOrders = orders.filter((o) => o.status !== "cancelled");
+    const cancelledCount = orders.filter((o) => o.status === "cancelled").length;
 
-      const totalRevenue = activeOrders.reduce((s, o) => s + o.total, 0);
-      const orderCount = activeOrders.length;
-      const avgOrderValue = orderCount > 0 ? totalRevenue / orderCount : 0;
-      const cancelRate = orders.length > 0 ? (cancelledCount / orders.length) * 100 : 0;
+    const totalRevenue = activeOrders.reduce((s, o) => s + o.total, 0);
+    const orderCount = activeOrders.length;
+    const avgOrderValue = orderCount > 0 ? totalRevenue / orderCount : 0;
+    const cancelRate = orders.length > 0 ? (cancelledCount / orders.length) * 100 : 0;
 
-      const ordersByStatus: Record<string, number> = {};
-      orders.forEach((o) => {
-        const s = o.status ?? "pending";
-        ordersByStatus[s] = (ordersByStatus[s] ?? 0) + 1;
-      });
+    const ordersByStatus: Record<string, number> = {};
+    orders.forEach((o) => {
+      const s = o.status ?? "pending";
+      ordersByStatus[s] = (ordersByStatus[s] ?? 0) + 1;
+    });
 
-      // Top products
-      const productMap = new Map<string, { name: string; quantity: number; revenue: number }>();
-      activeOrders.forEach((order) => {
-        order.order_items?.forEach((item: OrderItem) => {
-          const key = item.product_name_en;
-          const existing = productMap.get(key) ?? { name: key, quantity: 0, revenue: 0 };
-          productMap.set(key, {
-            name: key,
-            quantity: existing.quantity + item.quantity,
-            revenue: existing.revenue + item.total_price,
-          });
+    // Top products
+    const productMap = new Map<string, { name: string; quantity: number; revenue: number }>();
+    activeOrders.forEach((order) => {
+      order.order_items?.forEach((item) => {
+        const key = item.product_name_en;
+        const existing = productMap.get(key) ?? { name: key, quantity: 0, revenue: 0 };
+        productMap.set(key, {
+          name: key,
+          quantity: existing.quantity + item.quantity,
+          revenue: existing.revenue + item.total_price,
         });
       });
-      const topProducts = Array.from(productMap.values())
-        .sort((a, b) => b.revenue - a.revenue)
-        .slice(0, 5);
+    });
+    const topProducts = Array.from(productMap.values())
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 5);
 
-      // Daily revenue (last 7 days for chart)
-      const dailyMap = new Map<string, { revenue: number; count: number }>();
-      const daysToShow = period === "today" ? 1 : period === "week" ? 7 : 30;
-      for (let i = daysToShow - 1; i >= 0; i--) {
-        const d = new Date();
-        d.setDate(d.getDate() - i);
-        const key = d.toISOString().split("T")[0];
-        dailyMap.set(key, { revenue: 0, count: 0 });
-      }
-      activeOrders.forEach((order) => {
-        const key = order.created_at!.split("T")[0];
-        const existing = dailyMap.get(key);
-        if (existing) {
-          dailyMap.set(key, { revenue: existing.revenue + order.total, count: existing.count + 1 });
-        }
-      });
-      const dailyRevenue = Array.from(dailyMap.entries()).map(([date, d]) => ({ date, ...d }));
-
-      setData({ totalRevenue, orderCount, avgOrderValue, ordersByStatus, topProducts, dailyRevenue, cancelRate });
-      setLoading(false);
+    // Daily revenue (last 7 days for chart)
+    const dailyMap = new Map<string, { revenue: number; count: number }>();
+    const daysToShow = period === "today" ? 1 : period === "week" ? 7 : 30;
+    for (let i = daysToShow - 1; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const key = d.toISOString().split("T")[0];
+      dailyMap.set(key, { revenue: 0, count: 0 });
     }
+    activeOrders.forEach((order) => {
+      const key = new Date(order.created_at).toISOString().split("T")[0];
+      const existing = dailyMap.get(key);
+      if (existing) {
+        dailyMap.set(key, { revenue: existing.revenue + order.total, count: existing.count + 1 });
+      }
+    });
+    const dailyRevenue = Array.from(dailyMap.entries()).map(([date, d]) => ({ date, ...d }));
 
-    fetchReports();
-  }, [period]); // supabase is stable (useMemo)
+    return { totalRevenue, orderCount, avgOrderValue, ordersByStatus, topProducts, dailyRevenue, cancelRate };
+  }, [queryData, period]);
 
   const periods: Array<{ key: Period; label: string }> = [
     { key: "today", label: "Today" },

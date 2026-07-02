@@ -1,69 +1,44 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import Link from "next/link";
 import AdminLayout from "@/components/admin/AdminLayout";
-import { createClient } from "@/lib/supabase/client";
+import { db } from "@/lib/instant/client";
 
 interface CustomerRow {
   id: string;
   full_name: string | null;
   email: string | null;
   phone: string | null;
-  created_at: string | null;
+  created_at: string | number | null;
   order_count: number;
   total_spent: number;
 }
 
 export default function CustomersPage() {
-  const supabase = useMemo(() => createClient(), []);
-  const [customers, setCustomers] = useState<CustomerRow[]>([]);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
 
-  useEffect(() => {
-    async function fetchCustomers() {
-      const { data: profiles } = await supabase
-        .from("profiles")
-        .select("id, full_name, email, phone, created_at")
-        .eq("role", "customer")
-        .order("created_at", { ascending: false });
+  const { data, isLoading: loading } = db.useQuery({
+    profiles: {
+      $: { where: { role: "customer" }, order: { created_at: "desc" } },
+      orders: {},
+    },
+  });
 
-      if (!profiles) {
-        setLoading(false);
-        return;
-      }
-
-      const ids = profiles.map((p) => p.id);
-      const { data: orders } = await supabase
-        .from("orders")
-        .select("user_id, total")
-        .in("user_id", ids)
-        .neq("status", "cancelled");
-
-      const statsMap = new Map<string, { count: number; total: number }>();
-      (orders ?? []).forEach((o) => {
-        const uid = o.user_id!;
-        const existing = statsMap.get(uid) ?? { count: 0, total: 0 };
-        statsMap.set(uid, { count: existing.count + 1, total: existing.total + o.total });
-      });
-
-      setCustomers(
-        profiles.map((p) => ({
-          id: p.id,
-          full_name: p.full_name,
-          email: p.email,
-          phone: p.phone,
-          created_at: p.created_at,
-          order_count: statsMap.get(p.id)?.count ?? 0,
-          total_spent: statsMap.get(p.id)?.total ?? 0,
-        }))
-      );
-      setLoading(false);
-    }
-    fetchCustomers();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const customers = useMemo<CustomerRow[]>(() => {
+    return (data?.profiles ?? []).map((p) => {
+      const activeOrders = (p.orders ?? []).filter((o) => o.status !== "cancelled");
+      return {
+        id: p.id,
+        full_name: p.full_name ?? null,
+        email: p.email ?? null,
+        phone: p.phone ?? null,
+        created_at: p.created_at ?? null,
+        order_count: activeOrders.length,
+        total_spent: activeOrders.reduce((s, o) => s + (o.total ?? 0), 0),
+      };
+    });
+  }, [data]);
 
   const filtered = customers.filter((c) => {
     if (!search.trim()) return true;

@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import Image from "next/image";
 import AdminLayout from "@/components/admin/AdminLayout";
 import Modal from "@/components/admin/Modal";
 import BannerForm from "@/components/admin/BannerForm";
-import { createClient } from "@/lib/supabase/client";
+import { db } from "@/lib/instant/client";
+import { id } from "@instantdb/react";
 import type { Banner } from "@/types";
 
 interface BannerFormData {
@@ -20,66 +21,66 @@ interface BannerFormData {
 }
 
 export default function BannersPage() {
-  const supabase = useMemo(() => createClient(), []);
   const [showAdd, setShowAdd] = useState(false);
   const [editBanner, setEditBanner] = useState<Banner | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [banners, setBanners] = useState<Banner[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
 
-  async function fetchBanners() {
-    const { data } = await supabase.from("banners").select("*").order("sort_order");
-    setBanners(
-      (data ?? []).map((b) => ({ ...b, order: b.sort_order ?? 0 })) as Banner[]
-    );
-    setIsLoading(false);
-  }
+  const { data, isLoading } = db.useQuery({ banners: {} });
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { fetchBanners(); }, []);
+  const banners: Banner[] = useMemo(
+    () =>
+      ((data?.banners ?? []) as Banner[])
+        .slice()
+        .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)),
+    [data]
+  );
 
   const handleAdd = async (formData: BannerFormData) => {
-    await supabase.from("banners").insert({
-      title_en: formData.title_en,
-      title_ar: formData.title_ar,
-      subtitle_en: formData.subtitle_en,
-      subtitle_ar: formData.subtitle_ar,
-      image: formData.image,
-      link: formData.link,
-      sort_order: formData.order,
-      active: formData.active,
-    });
-    await fetchBanners();
+    const newId = id();
+    await db.transact(
+      db.tx.banners[newId].update({
+        title_en: formData.title_en,
+        title_ar: formData.title_ar,
+        subtitle_en: formData.subtitle_en,
+        subtitle_ar: formData.subtitle_ar,
+        image: formData.image,
+        link: formData.link,
+        sort_order: formData.order,
+        active: formData.active,
+      })
+    );
     setShowAdd(false);
   };
 
   const handleEdit = async (formData: BannerFormData) => {
     if (!editBanner) return;
-    await supabase.from("banners").update({
-      title_en: formData.title_en,
-      title_ar: formData.title_ar,
-      subtitle_en: formData.subtitle_en,
-      subtitle_ar: formData.subtitle_ar,
-      image: formData.image,
-      link: formData.link,
-      sort_order: formData.order,
-      active: formData.active,
-    }).eq("id", editBanner.id);
-    await fetchBanners();
+    await db.transact(
+      db.tx.banners[editBanner.id].update({
+        title_en: formData.title_en,
+        title_ar: formData.title_ar,
+        subtitle_en: formData.subtitle_en,
+        subtitle_ar: formData.subtitle_ar,
+        image: formData.image,
+        link: formData.link,
+        sort_order: formData.order,
+        active: formData.active,
+      })
+    );
     setEditBanner(null);
   };
 
   const handleDelete = async (bannerId: string) => {
     if (!confirm("Delete this banner?")) return;
     setDeletingId(bannerId);
-    await supabase.from("banners").delete().eq("id", bannerId);
-    setBanners((prev) => prev.filter((b) => b.id !== bannerId));
-    setDeletingId(null);
+    try {
+      await db.transact(db.tx.banners[bannerId].delete());
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   const handleToggleActive = async (banner: Banner) => {
-    await supabase.from("banners").update({ active: !banner.active }).eq("id", banner.id);
-    setBanners((prev) => prev.map((b) => b.id === banner.id ? { ...b, active: !banner.active } : b));
+    await db.transact(db.tx.banners[banner.id].update({ active: !banner.active }));
   };
 
   return (

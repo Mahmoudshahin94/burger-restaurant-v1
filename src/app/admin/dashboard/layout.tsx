@@ -1,29 +1,32 @@
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { getUnverifiedInstantUser } from "@/lib/instant/cookie";
+import { adminDb } from "@/lib/instant/admin";
 
 export default async function AdminDashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = await createClient();
+  const cookieUser = await getUnverifiedInstantUser(
+    process.env.NEXT_PUBLIC_INSTANTDB_APP_ID!,
+  );
 
-  // Use getSession() to read the session from cookies without a network call.
-  // getUser() always hits the auth server which can timeout in restricted envs.
-  const { data: { session } } = await supabase.auth.getSession();
-  const user = session?.user ?? null;
-
-  if (!user) {
+  if (!cookieUser) {
     redirect("/admin/login");
   }
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .single();
+  let verifiedUser;
+  try {
+    verifiedUser = await adminDb.auth.verifyToken(cookieUser.refresh_token);
+  } catch {
+    redirect("/admin/login");
+  }
 
-  if (profile?.role !== "admin") {
+  const { profiles } = await adminDb.query({
+    profiles: { $: { where: { "$user.id": verifiedUser.id } } },
+  });
+
+  if (profiles[0]?.role !== "admin") {
     redirect("/");
   }
 

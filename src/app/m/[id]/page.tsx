@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { createClient } from "@/lib/supabase/client";
+import { db } from "@/lib/instant/client";
 import { useLanguage } from "@/context/LanguageContext";
 import { useTheme } from "@/context/ThemeContext";
 import { useCart } from "@/context/CartContext";
@@ -78,67 +78,60 @@ export default function ItemDetailPage({ params }: { params: { id: string } }) {
   const { theme, toggleTheme } = useTheme();
   const { addItem, openCart } = useCart();
   const { isAdmin } = useUser();
-  const supabase = useMemo(() => createClient(), []);
 
   const [selectedSize, setSelectedSize] = useState<"small" | "large" | null>(null);
   const [shared, setShared] = useState(false);
   const [added, setAdded] = useState(false);
 
-  const [item, setItem] = useState<MenuItem | null>(null);
-  const [category, setCategory] = useState<Category | null>(null);
-  const [itemImages, setItemImages] = useState<ItemImage[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { data, isLoading } = db.useQuery({
+    products: {
+      $: { where: { id } },
+      images: {},
+      category: {},
+    },
+  });
 
-  useEffect(() => {
-    async function fetchItem() {
-      const [itemRes, imagesRes] = await Promise.all([
-        supabase.from("products").select("*, categories(*)").eq("id", id).single(),
-        supabase.from("product_images").select("*").eq("product_id", id).order("sort_order"),
-      ]);
+  const productData = data?.products?.[0];
 
-      if (itemRes.data) {
-        const productData = itemRes.data;
-        setItem({
-          id: productData.id,
-          name_en: productData.name_en,
-          name_ar: productData.name_ar,
-          description_en: productData.description_en,
-          description_ar: productData.description_ar,
-          price_small: productData.price_small,
-          price_large: productData.price_large,
-          image: productData.image,
-          available: productData.available,
-          sort_order: productData.sort_order,
-          category_id: productData.category_id,
-        });
+  const item: MenuItem | null = useMemo(() => {
+    if (!productData) return null;
+    return {
+      id: productData.id,
+      name_en: productData.name_en,
+      name_ar: productData.name_ar,
+      description_en: productData.description_en ?? null,
+      description_ar: productData.description_ar ?? null,
+      price_small: productData.price_small ?? null,
+      price_large: productData.price_large ?? null,
+      image: productData.image ?? null,
+      available: productData.available,
+      sort_order: productData.sort_order ?? null,
+      category_id: productData.category?.id ?? null,
+    };
+  }, [productData]);
 
-        if ((productData as { categories?: Category | null }).categories) {
-          setCategory((productData as { categories?: Category | null }).categories as Category);
-        }
-      }
+  const category: Category | null = useMemo(
+    () => (productData?.category as Category | undefined) ?? null,
+    [productData]
+  );
 
-      if (imagesRes.data) {
-        setItemImages(
-          imagesRes.data.map((img) => ({
-            id: img.id,
-            product_id: img.product_id,
-            item_id: img.product_id ?? undefined,
-            image: img.image_url,
-            image_url: img.image_url,
-            is_primary: img.is_primary,
-            sort_order: img.sort_order,
-            order: img.sort_order,
-          }))
-        );
-      }
-
-      setIsLoading(false);
-    }
-
-    fetchItem();
-  // supabase is stable (useMemo), only re-fetch when id changes
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]);
+  const itemImages: ItemImage[] = useMemo(
+    () =>
+      (productData?.images ?? [])
+        .slice()
+        .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+        .map((img) => ({
+          id: img.id,
+          product_id: productData?.id,
+          item_id: productData?.id,
+          image: img.image_url,
+          image_url: img.image_url,
+          is_primary: img.is_primary,
+          sort_order: img.sort_order,
+          order: img.sort_order,
+        })),
+    [productData]
+  );
 
   const handleShare = useCallback(async (itemName: string) => {
     try {

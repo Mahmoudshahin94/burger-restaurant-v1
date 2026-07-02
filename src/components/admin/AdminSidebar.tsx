@@ -1,10 +1,9 @@
 "use client";
 
-import { useMemo } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Image from "next/image";
-import { createClient } from "@/lib/supabase/client";
+import { db } from "@/lib/instant/client";
 
 interface NavItem {
   href: string;
@@ -142,11 +141,10 @@ interface AdminSidebarProps {
 
 export default function AdminSidebar({ onClose }: AdminSidebarProps) {
   const pathname = usePathname();
-  const supabase = useMemo(() => createClient(), []);
 
   async function handleSignOut() {
-    await supabase.auth.signOut();
-    // Use hard redirect to ensure cookies are cleared before navigation
+    await db.auth.signOut();
+    // Use hard redirect to ensure the session cookie is cleared before navigation
     window.location.href = "/";
   }
 

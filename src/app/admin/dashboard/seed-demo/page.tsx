@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
-import { createClient } from "@/lib/supabase/client";
+import { db } from "@/lib/instant/client";
+import { id } from "@instantdb/react";
 
 interface SeedLog {
   type: "info" | "success" | "error" | "warn";
@@ -156,7 +157,6 @@ const settings = [
 ];
 
 export default function SeedDemoPage() {
-  const supabase = useMemo(() => createClient(), []);
   const [logs, setLogs] = useState<SeedLog[]>([]);
   const [running, setRunning] = useState(false);
   const [done, setDone] = useState(false);
@@ -176,105 +176,115 @@ export default function SeedDemoPage() {
     // Clear existing data if requested
     if (clearFirst) {
       log("warn", "Clearing existing data...");
-      await supabase.from("product_images").delete().neq("id", "00000000-0000-0000-0000-000000000000");
-      await supabase.from("products").delete().neq("id", "00000000-0000-0000-0000-000000000000");
-      await supabase.from("categories").delete().neq("id", "00000000-0000-0000-0000-000000000000");
-      await supabase.from("banners").delete().neq("id", "00000000-0000-0000-0000-000000000000");
-      await supabase.from("settings").delete().neq("id", "00000000-0000-0000-0000-000000000000");
-      log("success", "Cleared existing data.");
+      try {
+        const { data } = await db.queryOnce({
+          categories: {},
+          products: {},
+          productImages: {},
+          banners: {},
+          settings: {},
+        });
+
+        const deleteTxs = [
+          ...(data.productImages ?? []).map((row) => db.tx.productImages[row.id].delete()),
+          ...(data.products ?? []).map((row) => db.tx.products[row.id].delete()),
+          ...(data.categories ?? []).map((row) => db.tx.categories[row.id].delete()),
+          ...(data.banners ?? []).map((row) => db.tx.banners[row.id].delete()),
+          ...(data.settings ?? []).map((row) => db.tx.settings[row.id].delete()),
+        ];
+
+        if (deleteTxs.length > 0) {
+          await db.transact(deleteTxs);
+        }
+        log("success", "Cleared existing data.");
+      } catch (err) {
+        log("error", `Failed to clear existing data: ${err instanceof Error ? err.message : String(err)}`);
+        setRunning(false);
+        return;
+      }
     }
 
     // Create categories
     log("info", "Creating categories...");
-    const { data: createdCats, error: catErr } = await supabase
-      .from("categories")
-      .insert(categories)
-      .select();
-
-    if (catErr || !createdCats) {
-      log("error", `Failed to create categories: ${catErr?.message}`);
+    const categoryIds = categories.map(() => id());
+    try {
+      const catTxs = categories.map((cat, i) => db.tx.categories[categoryIds[i]].update(cat));
+      await db.transact(catTxs);
+    } catch (err) {
+      log("error", `Failed to create categories: ${err instanceof Error ? err.message : String(err)}`);
       setRunning(false);
       return;
     }
-    log("success", `Created ${createdCats.length} categories`);
-
-    // Map category names to IDs
-    const categoryMap: Record<number, string> = {};
-    for (const cat of createdCats) {
-      const idx = categories.findIndex((c) => c.name_en === cat.name_en);
-      categoryMap[idx] = cat.id;
-    }
+    log("success", `Created ${categoryIds.length} categories`);
 
     // Create products
     log("info", "Creating products...");
-    const productData = products.map(([name_en, name_ar, desc_en, desc_ar, price_small, price_large, catIdx], i) => ({
-      name_en,
-      name_ar,
-      description_en: desc_en,
-      description_ar: desc_ar,
-      price_small: price_small || null,
-      price_large: price_large || null,
-      image: photo(name_en),
-      available: true,
-      sort_order: i + 1,
-      category_id: categoryMap[catIdx],
-    }));
-
-    const { data: createdProducts, error: prodErr } = await supabase
-      .from("products")
-      .insert(productData)
-      .select();
-
-    if (prodErr || !createdProducts) {
-      log("error", `Failed to create products: ${prodErr?.message}`);
+    const productIds = products.map(() => id());
+    try {
+      const productTxs = products.map(([name_en, name_ar, desc_en, desc_ar, price_small, price_large, catIdx], i) =>
+        db.tx.products[productIds[i]]
+          .update({
+            name_en,
+            name_ar,
+            description_en: desc_en,
+            description_ar: desc_ar,
+            ...(price_small ? { price_small } : {}),
+            ...(price_large ? { price_large } : {}),
+            image: photo(name_en),
+            available: true,
+            sort_order: i + 1,
+          })
+          .link({ category: categoryIds[catIdx] })
+      );
+      await db.transact(productTxs);
+    } catch (err) {
+      log("error", `Failed to create products: ${err instanceof Error ? err.message : String(err)}`);
       setRunning(false);
       return;
     }
-    log("success", `Created ${createdProducts.length} products`);
+    log("success", `Created ${productIds.length} products`);
 
     // Create product images
     log("info", "Creating product images...");
-    const productImages = createdProducts
-      .filter((prod) => prod.image)
-      .map((prod) => ({
-        product_id: prod.id,
-        image_url: prod.image as string,
-        is_primary: true,
-        sort_order: 1,
-      }));
-
-    const { error: imgErr } = await supabase.from("product_images").insert(productImages);
-    if (imgErr) {
-      log("warn", `Could not create product images: ${imgErr.message}`);
-    } else {
-      log("success", `Created ${productImages.length} product images`);
+    try {
+      const imageTxs = products.map(([name_en], i) =>
+        db.tx.productImages[id()]
+          .update({
+            image_url: photo(name_en),
+            is_primary: true,
+            sort_order: 1,
+          })
+          .link({ product: productIds[i] })
+      );
+      await db.transact(imageTxs);
+      log("success", `Created ${imageTxs.length} product images`);
+    } catch (err) {
+      log("warn", `Could not create product images: ${err instanceof Error ? err.message : String(err)}`);
     }
 
     // Create banners
     log("info", "Creating banners...");
-    const { data: createdBanners, error: bannerErr } = await supabase
-      .from("banners")
-      .insert(banners)
-      .select();
-
-    if (bannerErr) {
-      log("warn", `Could not create banners: ${bannerErr.message}`);
-    } else {
-      log("success", `Created ${createdBanners?.length ?? 0} banners`);
+    try {
+      const bannerTxs = banners.map((banner) => db.tx.banners[id()].update(banner));
+      await db.transact(bannerTxs);
+      log("success", `Created ${bannerTxs.length} banners`);
+    } catch (err) {
+      log("warn", `Could not create banners: ${err instanceof Error ? err.message : String(err)}`);
     }
 
     // Create settings
     log("info", "Configuring settings...");
-    for (const setting of settings) {
-      const { error: settingErr } = await supabase
-        .from("settings")
-        .upsert(setting, { onConflict: "key" });
-
-      if (settingErr) {
-        log("warn", `Could not set ${setting.key}: ${settingErr.message}`);
-      }
+    try {
+      const { data: settingsData } = await db.queryOnce({ settings: {} });
+      const existingByKey = new Map((settingsData.settings ?? []).map((row) => [row.key, row.id]));
+      const settingTxs = settings.map((setting) =>
+        db.tx.settings[existingByKey.get(setting.key) ?? id()].update(setting)
+      );
+      await db.transact(settingTxs);
+      log("success", "Settings configured");
+    } catch (err) {
+      log("warn", `Could not configure settings: ${err instanceof Error ? err.message : String(err)}`);
     }
-    log("success", "Settings configured");
 
     log("info", "─────────────────────────────────────────");
     log("success", "✅ Your Burger demo data seeded successfully!");

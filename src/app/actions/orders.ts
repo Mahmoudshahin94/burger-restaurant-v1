@@ -1,6 +1,8 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { getUnverifiedInstantUser } from "@/lib/instant/cookie";
+import { id } from "@instantdb/admin";
+import { adminDb } from "@/lib/instant/admin";
 import type { DeliveryAddress } from "@/types";
 
 export interface CreateOrderInput {
@@ -18,26 +20,55 @@ export interface CreateOrderInput {
   delivery_fee?: number;
 }
 
+// InstantDB has no request-scoped browser session on the server, so every
+// Server Action verifies the httpOnly session cookie against the admin SDK
+// itself (mirrors the old `supabase.auth.getUser()` calls).
+async function getVerifiedUser() {
+  const cookieUser = await getUnverifiedInstantUser(
+    process.env.NEXT_PUBLIC_INSTANTDB_APP_ID!
+  );
+  if (!cookieUser) return null;
+
+  try {
+    return await adminDb.auth.verifyToken(cookieUser.refresh_token);
+  } catch {
+    return null;
+  }
+}
+
+async function getSettingsMap(keys: string[]) {
+  const { settings } = await adminDb.query({
+    settings: { $: { where: { key: { $in: keys } } } },
+  });
+  const map = new Map<string, string | undefined>();
+  for (const row of settings) {
+    map.set(row.key, row.value ?? undefined);
+  }
+  return map;
+}
+
 async function sendWhatsAppNotification(
-  supabase: Awaited<ReturnType<typeof createClient>>,
   order: { id: string; order_number: number; total: number; delivery_fee: number; subtotal: number },
   items: CreateOrderInput["items"],
   deliveryAddress: DeliveryAddress,
   customerNotes?: string
 ) {
   try {
-    const { data: settings } = await supabase
-      .from("settings")
-      .select("key, value")
-      .in("key", ["whatsapp_enabled", "whatsapp_method", "whatsapp_number", "whatsapp_api_key", "whatsapp_webhook_url"]);
+    const settings = await getSettingsMap([
+      "whatsapp_enabled",
+      "whatsapp_method",
+      "whatsapp_number",
+      "whatsapp_api_key",
+      "whatsapp_webhook_url",
+    ]);
 
-    const whatsappEnabled = settings?.find((s) => s.key === "whatsapp_enabled")?.value === "true";
+    const whatsappEnabled = settings.get("whatsapp_enabled") === "true";
     if (!whatsappEnabled) return;
 
-    const whatsappMethod = settings?.find((s) => s.key === "whatsapp_method")?.value || "webhook";
-    const whatsappNumber = settings?.find((s) => s.key === "whatsapp_number")?.value;
-    const whatsappApiKey = settings?.find((s) => s.key === "whatsapp_api_key")?.value;
-    const whatsappWebhookUrl = settings?.find((s) => s.key === "whatsapp_webhook_url")?.value;
+    const whatsappMethod = settings.get("whatsapp_method") || "webhook";
+    const whatsappNumber = settings.get("whatsapp_number");
+    const whatsappApiKey = settings.get("whatsapp_api_key");
+    const whatsappWebhookUrl = settings.get("whatsapp_webhook_url");
 
     const itemsList = items
       .map((item) => `• ${item.product_name_ar} (${item.quantity}x) - ${(item.unit_price * item.quantity).toFixed(2)}₪`)
@@ -129,88 +160,112 @@ ${order.delivery_fee > 0 ? `🚚 *رسوم التوصيل:* ${order.delivery_fee
 }
 
 export async function createOrder(input: CreateOrderInput) {
-  const supabase = await createClient();
-
-  let user = null;
+  let verifiedUser;
   try {
-    const { data } = await supabase.auth.getUser();
-    user = data.user;
+    verifiedUser = await getVerifiedUser();
   } catch {
     return { error: "Unable to reach authentication server. Please try again." };
   }
-  if (!user) {
+  if (!verifiedUser) {
     return { error: "Not authenticated" };
   }
 
+  const { profiles } = await adminDb.query({
+    profiles: { $: { where: { "$user.id": verifiedUser.id } } },
+  });
+  const profileId = profiles[0]?.id;
+  if (!profileId) {
+    return { error: "Profile not found" };
+  }
+
   const subtotal = input.items.reduce((sum, item) => sum + item.unit_price * item.quantity, 0);
-  
+
   let deliveryFee = input.delivery_fee ?? 0;
   if (input.delivery_fee === undefined) {
-    const { data: deliverySettings } = await supabase
-      .from("settings")
-      .select("key, value")
-      .in("key", ["delivery_fee", "free_delivery_threshold", "discounted_delivery_fee"]);
-    
-    if (deliverySettings) {
-      const baseFee = deliverySettings.find((s) => s.key === "delivery_fee");
-      const threshold = deliverySettings.find((s) => s.key === "free_delivery_threshold");
-      const discounted = deliverySettings.find((s) => s.key === "discounted_delivery_fee");
-      
-      const baseFeeValue = baseFee?.value ? parseFloat(baseFee.value) : 0;
-      const thresholdValue = threshold?.value ? parseFloat(threshold.value) : 0;
-      const discountedValue = discounted?.value ? parseFloat(discounted.value) : 0;
-      
-      if (!isNaN(baseFeeValue)) {
-        deliveryFee = baseFeeValue;
-        if (thresholdValue > 0 && subtotal >= thresholdValue && !isNaN(discountedValue)) {
-          deliveryFee = discountedValue;
-        }
+    const deliverySettings = await getSettingsMap([
+      "delivery_fee",
+      "free_delivery_threshold",
+      "discounted_delivery_fee",
+    ]);
+
+    const baseFeeValue = parseFloat(deliverySettings.get("delivery_fee") ?? "");
+    const thresholdValue = parseFloat(deliverySettings.get("free_delivery_threshold") ?? "");
+    const discountedValue = parseFloat(deliverySettings.get("discounted_delivery_fee") ?? "");
+
+    if (!isNaN(baseFeeValue)) {
+      deliveryFee = baseFeeValue;
+      if (thresholdValue > 0 && subtotal >= thresholdValue && !isNaN(discountedValue)) {
+        deliveryFee = discountedValue;
       }
     }
   }
-  
+
   const total = subtotal + deliveryFee;
 
-  const { data: order, error: orderError } = await supabase
-    .from("orders")
-    .insert({
-      user_id: user.id,
-      status: "pending",
-      payment_method: input.payment_method ?? "cod",
-      payment_status: "pending",
-      subtotal,
-      delivery_fee: deliveryFee,
-      total,
-      notes: input.notes,
-      delivery_address: input.delivery_address as unknown as import("@/lib/supabase/types").Json,
-    })
-    .select()
-    .single();
+  // InstantDB has no auto-increment, so `order_number` is tracked via a
+  // dedicated `counters` row. Bumping it in the same `transact` call as the
+  // order/items keeps everything atomic (all-or-nothing).
+  const { counters } = await adminDb.query({
+    counters: { $: { where: { key: "order_number" } } },
+  });
+  const counterRow = counters[0];
+  const nextOrderNumber = (counterRow?.value ?? 0) + 1;
 
-  if (orderError || !order) {
-    return { error: orderError?.message ?? "Failed to create order" };
+  const orderId = id();
+  const now = new Date().toISOString();
+
+  try {
+    await adminDb.transact([
+      adminDb.tx.orders[orderId]
+        .update({
+          order_number: nextOrderNumber,
+          status: "pending",
+          payment_method: input.payment_method ?? "cod",
+          payment_status: "pending",
+          subtotal,
+          delivery_fee: deliveryFee,
+          total,
+          notes: input.notes,
+          delivery_address: input.delivery_address,
+          created_at: now,
+        })
+        .link({ profile: profileId, $user: verifiedUser.id }),
+      ...input.items.map((item) =>
+        adminDb.tx.orderItems[id()]
+          .update({
+            product_name_en: item.product_name_en,
+            product_name_ar: item.product_name_ar,
+            size: item.size,
+            quantity: item.quantity,
+            unit_price: item.unit_price,
+            total_price: item.unit_price * item.quantity,
+          })
+          .link({ order: orderId, product: item.product_id })
+      ),
+      counterRow
+        ? adminDb.tx.counters[counterRow.id].update({ value: nextOrderNumber })
+        : adminDb.tx.counters[id()].update({ key: "order_number", value: nextOrderNumber }),
+    ]);
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Failed to create order" };
   }
 
-  const orderItems = input.items.map((item) => ({
-    order_id: order.id,
-    product_id: item.product_id,
-    product_name_en: item.product_name_en,
-    product_name_ar: item.product_name_ar,
-    size: item.size,
-    quantity: item.quantity,
-    unit_price: item.unit_price,
-    total_price: item.unit_price * item.quantity,
-  }));
+  const order = {
+    id: orderId,
+    order_number: nextOrderNumber,
+    status: "pending" as const,
+    payment_method: input.payment_method ?? "cod",
+    payment_status: "pending" as const,
+    subtotal,
+    delivery_fee: deliveryFee,
+    total,
+    notes: input.notes ?? null,
+    delivery_address: input.delivery_address,
+    created_at: now,
+  };
 
-  const { error: itemsError } = await supabase.from("order_items").insert(orderItems);
-
-  if (itemsError) {
-    await supabase.from("orders").delete().eq("id", order.id);
-    return { error: itemsError.message };
-  }
-
+  // Fire-and-forget: never block order confirmation on a notification webhook.
   sendWhatsAppNotification(
-    supabase,
     { id: order.id, order_number: order.order_number, total, delivery_fee: deliveryFee, subtotal },
     input.items,
     input.delivery_address,
@@ -221,46 +276,32 @@ export async function createOrder(input: CreateOrderInput) {
 }
 
 export async function getOrders() {
-  const supabase = await createClient();
+  const verifiedUser = await getVerifiedUser();
+  if (!verifiedUser) return { error: "Not authenticated" };
 
-  let user = null;
-  try {
-    const { data } = await supabase.auth.getUser();
-    user = data.user;
-  } catch {
-    return { error: "Unable to reach authentication server. Please try again." };
-  }
-  if (!user) return { error: "Not authenticated" };
+  const { orders } = await adminDb.query({
+    orders: {
+      $: { where: { "$user.id": verifiedUser.id }, order: { created_at: "desc" } },
+      order_items: {},
+    },
+  });
 
-  const { data, error } = await supabase
-    .from("orders")
-    .select("*, order_items(*)")
-    .eq("user_id", user.id)
-    .order("created_at", { ascending: false });
-
-  if (error) return { error: error.message };
-  return { orders: data };
+  return { orders };
 }
 
 export async function getOrderById(orderId: string) {
-  const supabase = await createClient();
+  const verifiedUser = await getVerifiedUser();
+  if (!verifiedUser) return { error: "Not authenticated" };
 
-  let user = null;
-  try {
-    const { data } = await supabase.auth.getUser();
-    user = data.user;
-  } catch {
-    return { error: "Unable to reach authentication server. Please try again." };
-  }
-  if (!user) return { error: "Not authenticated" };
+  const { orders } = await adminDb.query({
+    orders: {
+      $: { where: { id: orderId, "$user.id": verifiedUser.id } },
+      order_items: {},
+    },
+  });
 
-  const { data, error } = await supabase
-    .from("orders")
-    .select("*, order_items(*)")
-    .eq("id", orderId)
-    .eq("user_id", user.id)
-    .single();
+  const order = orders[0];
+  if (!order) return { error: "Order not found" };
 
-  if (error) return { error: error.message };
-  return { order: data };
+  return { order };
 }

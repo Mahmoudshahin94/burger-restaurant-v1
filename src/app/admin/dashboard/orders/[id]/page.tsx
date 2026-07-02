@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import AdminLayout from "@/components/admin/AdminLayout";
-import { createClient } from "@/lib/supabase/client";
+import { db } from "@/lib/instant/client";
 import OrderStatusBadge from "@/components/orders/OrderStatusBadge";
-import type { Order, OrderStatus, OrderItem, DeliveryAddress } from "@/types";
+import type { OrderStatus, DeliveryAddress } from "@/types";
 
 const STATUS_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   pending: ["confirmed", "cancelled"],
@@ -23,66 +23,49 @@ const STATUS_LABELS: Record<OrderStatus, string> = {
   cancelled: "Cancelled",
 };
 
-const STATUS_TIMESTAMP_MAP: Partial<Record<OrderStatus, keyof Order>> = {
-  confirmed: "confirmed_at",
-  out_for_delivery: "out_for_delivery_at",
-  delivered: "delivered_at",
-  cancelled: "cancelled_at",
-};
-
 export default function AdminOrderDetailPage({ params }: { params: { id: string } }) {
-  const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
-  const [order, setOrder] = useState<Order & { profiles?: { full_name: string | null; phone: string | null; email: string | null; id: string } | null } | null>(null);
-  const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
   const [adminNotes, setAdminNotes] = useState("");
 
-  useEffect(() => {
-    async function fetchOrder() {
-      const { data, error } = await supabase
-        .from("orders")
-        .select("*, order_items(*), profiles(id, full_name, phone, email)")
-        .eq("id", params.id)
-        .single();
+  const { data, isLoading: loading } = db.useQuery({
+    orders: {
+      $: { where: { id: params.id } },
+      order_items: {},
+      profile: {},
+    },
+  });
 
-      if (!error && data) {
-        setOrder(data as typeof order);
-        setAdminNotes(data.notes ?? "");
-      }
-      setLoading(false);
-    }
-    fetchOrder();
+  const order = data?.orders?.[0] ?? null;
+
+  useEffect(() => {
+    if (order) setAdminNotes(order.notes ?? "");
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [params.id]);
+  }, [order?.id]);
 
   async function updateStatus(newStatus: OrderStatus) {
     if (!order) return;
     setUpdating(true);
 
-    const updates: Record<string, unknown> = { status: newStatus };
-    const tsField = STATUS_TIMESTAMP_MAP[newStatus];
-    if (tsField) {
-      updates[tsField as string] = new Date().toISOString();
+    const now = new Date().toISOString();
+    if (newStatus === "confirmed") {
+      await db.transact(db.tx.orders[order.id].update({ status: newStatus, confirmed_at: now }));
+    } else if (newStatus === "out_for_delivery") {
+      await db.transact(db.tx.orders[order.id].update({ status: newStatus, out_for_delivery_at: now }));
+    } else if (newStatus === "delivered") {
+      await db.transact(db.tx.orders[order.id].update({ status: newStatus, delivered_at: now }));
+    } else if (newStatus === "cancelled") {
+      await db.transact(db.tx.orders[order.id].update({ status: newStatus, cancelled_at: now }));
+    } else {
+      await db.transact(db.tx.orders[order.id].update({ status: newStatus }));
     }
 
-    const { data, error } = await supabase
-      .from("orders")
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .update(updates as any)
-      .eq("id", order.id)
-      .select("*, order_items(*), profiles(id, full_name, phone, email)")
-      .single();
-
-    if (!error && data) {
-      setOrder(data as typeof order);
-    }
     setUpdating(false);
   }
 
   async function saveNotes() {
     if (!order) return;
-    await supabase.from("orders").update({ notes: adminNotes }).eq("id", order.id);
+    await db.transact(db.tx.orders[order.id].update({ notes: adminNotes }));
   }
 
   if (loading) {
@@ -116,7 +99,7 @@ export default function AdminOrderDetailPage({ params }: { params: { id: string 
     year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit",
   });
 
-  const STATUS_STEPS: Array<{ key: OrderStatus; label: string; icon: string; ts: string | null }> = [
+  const STATUS_STEPS: Array<{ key: OrderStatus; label: string; icon: string; ts: string | number | null | undefined }> = [
     { key: "pending", label: "Order Placed", icon: "📋", ts: order.created_at },
     { key: "confirmed", label: "Confirmed", icon: "✅", ts: order.confirmed_at },
     { key: "out_for_delivery", label: "Out for Delivery", icon: "🛵", ts: order.out_for_delivery_at },
@@ -206,7 +189,7 @@ export default function AdminOrderDetailPage({ params }: { params: { id: string 
             <div className="bg-white rounded-2xl border border-gray-100 p-5">
               <h3 className="font-semibold text-gray-800 mb-4">Order Items</h3>
               <div className="space-y-3">
-                {order.order_items?.map((item: OrderItem) => (
+                {order.order_items?.map((item) => (
                   <div key={item.id} className="flex items-center justify-between gap-3">
                     <div className="flex-1">
                       <p className="text-sm font-semibold text-gray-800">{item.product_name_en}</p>
@@ -255,17 +238,17 @@ export default function AdminOrderDetailPage({ params }: { params: { id: string 
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
                   <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm">
-                    {(order.profiles?.full_name ?? "G")[0].toUpperCase()}
+                    {(order.profile?.full_name ?? "G")[0].toUpperCase()}
                   </div>
                   <div>
-                    <p className="text-sm font-semibold text-gray-800">{order.profiles?.full_name ?? "Guest"}</p>
-                    {order.profiles?.email && <p className="text-xs text-gray-500">{order.profiles.email}</p>}
-                    {order.profiles?.phone && <p className="text-xs text-gray-500">{order.profiles.phone}</p>}
+                    <p className="text-sm font-semibold text-gray-800">{order.profile?.full_name ?? "Guest"}</p>
+                    {order.profile?.email && <p className="text-xs text-gray-500">{order.profile.email}</p>}
+                    {order.profile?.phone && <p className="text-xs text-gray-500">{order.profile.phone}</p>}
                   </div>
                 </div>
-                {order.profiles?.id && (
+                {order.profile?.id && (
                   <a
-                    href={`/admin/dashboard/customers/${order.profiles.id}`}
+                    href={`/admin/dashboard/customers/${order.profile.id}`}
                     className="text-xs text-primary font-semibold hover:underline"
                   >
                     View customer →

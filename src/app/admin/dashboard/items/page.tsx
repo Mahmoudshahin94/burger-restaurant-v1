@@ -1,58 +1,101 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import Image from "next/image";
 import AdminLayout from "@/components/admin/AdminLayout";
 import Modal from "@/components/admin/Modal";
 import ItemForm from "@/components/admin/ItemForm";
-import { createClient } from "@/lib/supabase/client";
+import { db } from "@/lib/instant/client";
+import { id } from "@instantdb/react";
+import type { TransactionChunk } from "@instantdb/react";
+import type { AppSchema } from "../../../../../instant.schema";
 import type { MenuItem, Category, ItemImage } from "@/types";
 import type { ManagedImage } from "@/components/admin/MultiImageUpload";
 
+// Builds the productImages tx chunks needed to reconcile `existing` rows with the
+// images currently managed in the form (handles add/update/delete + re-ordering).
+function buildImageChunks(productId: string, managedImages: ManagedImage[], existing: ItemImage[]) {
+  const chunks: TransactionChunk<AppSchema, "productImages">[] = [];
+
+  for (const ex of existing) {
+    const stillPresent = managedImages.some((m) => m.key === ex.id);
+    if (!stillPresent) {
+      chunks.push(db.tx.productImages[ex.id].delete());
+    }
+  }
+
+  managedImages.forEach((m, i) => {
+    const existingRow = existing.find((e) => e.id === m.key);
+    if (existingRow) {
+      chunks.push(db.tx.productImages[existingRow.id].update({ image_url: m.url, is_primary: m.isPrimary, sort_order: i }));
+    } else {
+      const newImgId = id();
+      chunks.push(
+        db.tx.productImages[newImgId]
+          .update({ image_url: m.url, is_primary: m.isPrimary, sort_order: i })
+          .link({ product: productId })
+      );
+    }
+  });
+
+  return chunks;
+}
+
 export default function ItemsPage() {
-  const supabase = useMemo(() => createClient(), []);
   const [showAdd, setShowAdd] = useState(false);
   const [editItem, setEditItem] = useState<MenuItem | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [filterCategory, setFilterCategory] = useState("");
   const [search, setSearch] = useState("");
 
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [allItems, setAllItems] = useState<MenuItem[]>([]);
-  const [allItemImages, setAllItemImages] = useState<ItemImage[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { data, isLoading } = db.useQuery({
+    categories: {},
+    products: { images: {}, category: {} },
+  });
 
-  async function fetchAll() {
-    const [catRes, itemsRes, imagesRes] = await Promise.all([
-      supabase.from("categories").select("*").order("sort_order"),
-      supabase.from("products").select("*").order("sort_order"),
-      supabase.from("product_images").select("*").order("sort_order"),
-    ]);
+  const categories: Category[] = useMemo(
+    () =>
+      ((data?.categories ?? []) as Category[])
+        .slice()
+        .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)),
+    [data]
+  );
 
-    setCategories((catRes.data ?? []).map((c) => ({ ...c, order: c.sort_order ?? 0 })) as Category[]);
-    setAllItems(
-      (itemsRes.data ?? []).map((p) => ({
-        ...p,
+  const allItems: MenuItem[] = useMemo(
+    () =>
+      (data?.products ?? []).map((p) => ({
+        id: p.id,
+        name_en: p.name_en,
+        name_ar: p.name_ar,
+        description_en: p.description_en ?? null,
+        description_ar: p.description_ar ?? null,
+        price_small: p.price_small ?? null,
+        price_large: p.price_large ?? null,
+        image: p.image ?? null,
+        available: p.available,
+        sort_order: p.sort_order ?? null,
         order: p.sort_order ?? 0,
-        category_id: p.category_id ?? "",
-      })) as MenuItem[]
-    );
-    setAllItemImages(
-      (imagesRes.data ?? []).map((img) => ({
-        id: img.id,
-        product_id: img.product_id,
-        item_id: img.product_id ?? undefined,
-        image: img.image_url,
-        is_primary: img.is_primary,
-        order: img.sort_order,
-        sort_order: img.sort_order,
-      })) as ItemImage[]
-    );
-    setIsLoading(false);
-  }
+        category_id: p.category?.id ?? "",
+      })),
+    [data]
+  );
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { fetchAll(); }, []);
+  const allItemImages: ItemImage[] = useMemo(
+    () =>
+      (data?.products ?? []).flatMap((p) =>
+        (p.images ?? []).map((img) => ({
+          id: img.id,
+          product_id: p.id,
+          item_id: p.id,
+          image: img.image_url,
+          image_url: img.image_url,
+          is_primary: img.is_primary,
+          order: img.sort_order,
+          sort_order: img.sort_order,
+        }))
+      ),
+    [data]
+  );
 
   const filteredItems = useMemo(() => {
     let items = allItems;
@@ -64,51 +107,32 @@ export default function ItemsPage() {
     return items.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
   }, [allItems, filterCategory, search]);
 
-  const syncItemImages = async (productId: string, managedImages: ManagedImage[]) => {
-    const existing = allItemImages.filter((img) => img.item_id === productId || img.product_id === productId);
-
-    // Delete removed
-    for (const ex of existing) {
-      const stillPresent = managedImages.some((m) => m.key === ex.id);
-      if (!stillPresent) {
-        await supabase.from("product_images").delete().eq("id", ex.id);
-      }
-    }
-
-    // Upsert remaining/new
-    for (let i = 0; i < managedImages.length; i++) {
-      const m = managedImages[i];
-      const existingRow = existing.find((e) => e.id === m.key);
-      if (existingRow) {
-        await supabase.from("product_images").update({ image_url: m.url, is_primary: m.isPrimary, sort_order: i }).eq("id", existingRow.id);
-      } else {
-        await supabase.from("product_images").insert({ product_id: productId, image_url: m.url, is_primary: m.isPrimary, sort_order: i });
-      }
-    }
-  };
-
   const handleAdd = async (formData: { name_en: string; name_ar: string; description_en?: string; description_ar?: string; price_small: number; price_large: number; available: boolean; order: number; category_id?: string }, images: ManagedImage[]) => {
     const primaryImage = images.find((m) => m.isPrimary)?.url ?? images[0]?.url ?? "";
-    const { data: product } = await supabase.from("products").insert({
-      name_en: formData.name_en,
-      name_ar: formData.name_ar,
-      description_en: formData.description_en ?? "",
-      description_ar: formData.description_ar ?? "",
-      price_small: formData.price_small,
-      price_large: formData.price_large,
-      image: primaryImage,
-      available: formData.available,
-      sort_order: formData.order,
-      category_id: formData.category_id ?? null,
-    }).select().single();
+    const productId = id();
 
-    if (product && images.length > 0) {
-      await supabase.from("product_images").insert(
-        images.map((m, i) => ({ product_id: product.id, image_url: m.url, is_primary: m.isPrimary, sort_order: i }))
-      );
+    const chunks: (TransactionChunk<AppSchema, "products"> | TransactionChunk<AppSchema, "productImages">)[] = [
+      db.tx.products[productId].update({
+        name_en: formData.name_en,
+        name_ar: formData.name_ar,
+        description_en: formData.description_en ?? "",
+        description_ar: formData.description_ar ?? "",
+        price_small: formData.price_small,
+        price_large: formData.price_large,
+        image: primaryImage,
+        available: formData.available,
+        sort_order: formData.order,
+        created_at: new Date().toISOString(),
+      }),
+    ];
+
+    if (formData.category_id) {
+      chunks.push(db.tx.products[productId].link({ category: formData.category_id }));
     }
 
-    await fetchAll();
+    chunks.push(...buildImageChunks(productId, images, []));
+
+    await db.transact(chunks);
     setShowAdd(false);
   };
 
@@ -116,36 +140,47 @@ export default function ItemsPage() {
     if (!editItem) return;
     const primaryImage = images.find((m) => m.isPrimary)?.url ?? images[0]?.url ?? editItem.image ?? "";
 
-    await supabase.from("products").update({
-      name_en: formData.name_en,
-      name_ar: formData.name_ar,
-      description_en: formData.description_en ?? "",
-      description_ar: formData.description_ar ?? "",
-      price_small: formData.price_small,
-      price_large: formData.price_large,
-      image: primaryImage,
-      available: formData.available,
-      sort_order: formData.order,
-      category_id: formData.category_id ?? null,
-    }).eq("id", editItem.id);
+    const chunks: (TransactionChunk<AppSchema, "products"> | TransactionChunk<AppSchema, "productImages">)[] = [
+      db.tx.products[editItem.id].update({
+        name_en: formData.name_en,
+        name_ar: formData.name_ar,
+        description_en: formData.description_en ?? "",
+        description_ar: formData.description_ar ?? "",
+        price_small: formData.price_small,
+        price_large: formData.price_large,
+        image: primaryImage,
+        available: formData.available,
+        sort_order: formData.order,
+        updated_at: new Date().toISOString(),
+      }),
+    ];
 
-    await syncItemImages(editItem.id, images);
-    await fetchAll();
+    if (formData.category_id) {
+      chunks.push(db.tx.products[editItem.id].link({ category: formData.category_id }));
+    } else if (editItem.category_id) {
+      chunks.push(db.tx.products[editItem.id].unlink({ category: editItem.category_id }));
+    }
+
+    const existingImages = getItemImages(editItem.id);
+    chunks.push(...buildImageChunks(editItem.id, images, existingImages));
+
+    await db.transact(chunks);
     setEditItem(null);
   };
 
   const handleDelete = async (itemId: string) => {
     if (!confirm("Delete this product?")) return;
     setDeletingId(itemId);
-    await supabase.from("product_images").delete().eq("product_id", itemId);
-    await supabase.from("products").delete().eq("id", itemId);
-    setAllItems((prev) => prev.filter((i) => i.id !== itemId));
-    setDeletingId(null);
+    try {
+      // productImages are linked with onDelete: "cascade", so they're removed automatically.
+      await db.transact(db.tx.products[itemId].delete());
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   const handleToggleAvailable = async (item: MenuItem) => {
-    await supabase.from("products").update({ available: !item.available }).eq("id", item.id);
-    setAllItems((prev) => prev.map((i) => i.id === item.id ? { ...i, available: !item.available } : i));
+    await db.transact(db.tx.products[item.id].update({ available: !item.available }));
   };
 
   const getItemThumbnail = (item: MenuItem): string | null => {

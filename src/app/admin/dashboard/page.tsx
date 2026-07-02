@@ -1,10 +1,10 @@
 "use client";
 
-import { useMemo, useEffect, useState } from "react";
+import { useMemo } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import AdminLayout from "@/components/admin/AdminLayout";
-import { createClient } from "@/lib/supabase/client";
+import { db } from "@/lib/instant/client";
 
 interface DashboardStats {
   totalCategories: number;
@@ -19,44 +19,39 @@ interface DashboardStats {
 }
 
 export default function DashboardPage() {
-  const supabase = useMemo(() => createClient(), []);
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const { data, isLoading } = db.useQuery({
+    categories: {},
+    products: {},
+    orders: {},
+    profiles: { $: { where: { role: "customer" } } },
+  });
 
-  useEffect(() => {
-    async function fetchStats() {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+  const stats = useMemo<DashboardStats | null>(() => {
+    if (!data) return null;
 
-      const [catRes, prodRes, ordersRes, todayOrdersRes, customersRes] = await Promise.all([
-        supabase.from("categories").select("id, active"),
-        supabase.from("products").select("id, available"),
-        supabase.from("orders").select("id, status, total, created_at"),
-        supabase.from("orders").select("id, total").gte("created_at", today.toISOString()),
-        supabase.from("profiles").select("id").eq("role", "customer"),
-      ]);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayTime = today.getTime();
 
-      const orders = ordersRes.data ?? [];
-      const todayOrders = todayOrdersRes.data ?? [];
-      const cats = catRes.data ?? [];
-      const prods = prodRes.data ?? [];
+    const cats = data.categories ?? [];
+    const prods = data.products ?? [];
+    const orders = data.orders ?? [];
+    const customers = data.profiles ?? [];
 
-      setStats({
-        totalCategories: cats.length,
-        activeCategories: cats.filter((c) => c.active).length,
-        totalProducts: prods.length,
-        availableProducts: prods.filter((p) => p.available).length,
-        pendingOrders: orders.filter((o) => o.status === "pending").length,
-        todayOrders: todayOrders.length,
-        todayRevenue: todayOrders.reduce((s, o) => s + (o.total ?? 0), 0),
-        totalRevenue: orders.filter((o) => o.status !== "cancelled").reduce((s, o) => s + (o.total ?? 0), 0),
-        totalCustomers: (customersRes.data ?? []).length,
-      });
-      setIsLoading(false);
-    }
-    fetchStats();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    const todayOrders = orders.filter((o) => new Date(o.created_at).getTime() >= todayTime);
+
+    return {
+      totalCategories: cats.length,
+      activeCategories: cats.filter((c) => c.active).length,
+      totalProducts: prods.length,
+      availableProducts: prods.filter((p) => p.available).length,
+      pendingOrders: orders.filter((o) => o.status === "pending").length,
+      todayOrders: todayOrders.length,
+      todayRevenue: todayOrders.reduce((s, o) => s + (o.total ?? 0), 0),
+      totalRevenue: orders.filter((o) => o.status !== "cancelled").reduce((s, o) => s + (o.total ?? 0), 0),
+      totalCustomers: customers.length,
+    };
+  }, [data]);
 
   const statCards = useMemo(() => {
     if (!stats) return [];

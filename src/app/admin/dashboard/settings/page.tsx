@@ -1,20 +1,14 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import AdminLayout from "@/components/admin/AdminLayout";
-import { createClient } from "@/lib/supabase/client";
-
-interface Setting {
-  id: string;
-  key: string;
-  value: string | null;
-}
+import { db } from "@/lib/instant/client";
+import { lookup } from "@instantdb/react";
 
 export default function SettingsPage() {
-  const supabase = useMemo(() => createClient(), []);
-  const [, setSettings] = useState<Setting[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { data, isLoading } = db.useQuery({ settings: {} });
+  const initializedRef = useRef(false);
 
   const [logoUrl, setLogoUrl] = useState("");
   const [defaultLang, setDefaultLang] = useState("ar");
@@ -30,62 +24,46 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    supabase.from("settings").select("*").then(({ data }) => {
-      const rows: Setting[] = data ?? [];
-      setSettings(rows);
-      const logo = rows.find((s) => s.key === "logo");
-      const lang = rows.find((s) => s.key === "default_lang");
-      const interval = rows.find((s) => s.key === "carousel_interval");
-      const fee = rows.find((s) => s.key === "delivery_fee");
-      const waEnabled = rows.find((s) => s.key === "whatsapp_enabled");
-      const waMethod = rows.find((s) => s.key === "whatsapp_method");
-      const waNumber = rows.find((s) => s.key === "whatsapp_number");
-      const waApiKey = rows.find((s) => s.key === "whatsapp_api_key");
-      const waWebhook = rows.find((s) => s.key === "whatsapp_webhook_url");
-      if (logo) setLogoUrl(logo.value ?? "");
-      if (lang) setDefaultLang(lang.value ?? "ar");
-      if (interval) {
-        const ms = parseInt(interval.value ?? "5000", 10);
-        if (!isNaN(ms)) setCarouselSec(Math.round(ms / 1000));
-      }
-      if (fee) {
-        const feeValue = parseFloat(fee.value ?? "0");
-        if (!isNaN(feeValue)) setDeliveryFee(feeValue);
-      }
-      const freeThreshold = rows.find((s) => s.key === "free_delivery_threshold");
-      const discountedFee = rows.find((s) => s.key === "discounted_delivery_fee");
-      if (freeThreshold) {
-        const thresholdValue = parseFloat(freeThreshold.value ?? "0");
-        if (!isNaN(thresholdValue)) setFreeDeliveryThreshold(thresholdValue);
-      }
-      if (discountedFee) {
-        const discountedValue = parseFloat(discountedFee.value ?? "0");
-        if (!isNaN(discountedValue)) setDiscountedDeliveryFee(discountedValue);
-      }
-      if (waEnabled) setWhatsappEnabled(waEnabled.value === "true");
-      if (waMethod) setWhatsappMethod(waMethod.value as "callmebot" | "webhook" ?? "webhook");
-      if (waNumber) setWhatsappNumber(waNumber.value ?? "");
-      if (waApiKey) setWhatsappApiKey(waApiKey.value ?? "");
-      if (waWebhook) setWhatsappWebhookUrl(waWebhook.value ?? "");
-      setIsLoading(false);
-    });
-  }, []);
+    if (isLoading || initializedRef.current) return;
+    initializedRef.current = true;
 
-  const upsertSetting = async (key: string, value: string) => {
-    const { data: existing } = await supabase
-      .from("settings")
-      .select("id")
-      .eq("key", key)
-      .single();
-    
-    if (existing) {
-      await supabase.from("settings").update({ value }).eq("id", existing.id);
-    } else {
-      await supabase.from("settings").insert({ key, value });
+    const rows = data?.settings ?? [];
+    const logo = rows.find((s) => s.key === "logo");
+    const lang = rows.find((s) => s.key === "default_lang");
+    const interval = rows.find((s) => s.key === "carousel_interval");
+    const fee = rows.find((s) => s.key === "delivery_fee");
+    const waEnabled = rows.find((s) => s.key === "whatsapp_enabled");
+    const waMethod = rows.find((s) => s.key === "whatsapp_method");
+    const waNumber = rows.find((s) => s.key === "whatsapp_number");
+    const waApiKey = rows.find((s) => s.key === "whatsapp_api_key");
+    const waWebhook = rows.find((s) => s.key === "whatsapp_webhook_url");
+    if (logo) setLogoUrl(logo.value ?? "");
+    if (lang) setDefaultLang(lang.value ?? "ar");
+    if (interval) {
+      const ms = parseInt(interval.value ?? "5000", 10);
+      if (!isNaN(ms)) setCarouselSec(Math.round(ms / 1000));
     }
-  };
+    if (fee) {
+      const feeValue = parseFloat(fee.value ?? "0");
+      if (!isNaN(feeValue)) setDeliveryFee(feeValue);
+    }
+    const freeThreshold = rows.find((s) => s.key === "free_delivery_threshold");
+    const discountedFee = rows.find((s) => s.key === "discounted_delivery_fee");
+    if (freeThreshold) {
+      const thresholdValue = parseFloat(freeThreshold.value ?? "0");
+      if (!isNaN(thresholdValue)) setFreeDeliveryThreshold(thresholdValue);
+    }
+    if (discountedFee) {
+      const discountedValue = parseFloat(discountedFee.value ?? "0");
+      if (!isNaN(discountedValue)) setDiscountedDeliveryFee(discountedValue);
+    }
+    if (waEnabled) setWhatsappEnabled(waEnabled.value === "true");
+    if (waMethod) setWhatsappMethod((waMethod.value as "callmebot" | "webhook") ?? "webhook");
+    if (waNumber) setWhatsappNumber(waNumber.value ?? "");
+    if (waApiKey) setWhatsappApiKey(waApiKey.value ?? "");
+    if (waWebhook) setWhatsappWebhookUrl(waWebhook.value ?? "");
+  }, [isLoading, data]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -93,19 +71,23 @@ export default function SettingsPage() {
     const clampedSec = Math.min(30, Math.max(2, carouselSec));
     const intervalMs = String(clampedSec * 1000);
 
-    await Promise.all([
-      upsertSetting("logo", logoUrl),
-      upsertSetting("default_lang", defaultLang),
-      upsertSetting("carousel_interval", intervalMs),
-      upsertSetting("delivery_fee", String(deliveryFee)),
-      upsertSetting("free_delivery_threshold", String(freeDeliveryThreshold)),
-      upsertSetting("discounted_delivery_fee", String(discountedDeliveryFee)),
-      upsertSetting("whatsapp_enabled", String(whatsappEnabled)),
-      upsertSetting("whatsapp_method", whatsappMethod),
-      upsertSetting("whatsapp_number", whatsappNumber),
-      upsertSetting("whatsapp_api_key", whatsappApiKey),
-      upsertSetting("whatsapp_webhook_url", whatsappWebhookUrl),
-    ]);
+    const entries: Array<[string, string]> = [
+      ["logo", logoUrl],
+      ["default_lang", defaultLang],
+      ["carousel_interval", intervalMs],
+      ["delivery_fee", String(deliveryFee)],
+      ["free_delivery_threshold", String(freeDeliveryThreshold)],
+      ["discounted_delivery_fee", String(discountedDeliveryFee)],
+      ["whatsapp_enabled", String(whatsappEnabled)],
+      ["whatsapp_method", whatsappMethod],
+      ["whatsapp_number", whatsappNumber],
+      ["whatsapp_api_key", whatsappApiKey],
+      ["whatsapp_webhook_url", whatsappWebhookUrl],
+    ];
+
+    await db.transact(
+      entries.map(([key, value]) => db.tx.settings[lookup("key", key)].update({ value }))
+    );
 
     setSaving(false);
     setSaved(true);

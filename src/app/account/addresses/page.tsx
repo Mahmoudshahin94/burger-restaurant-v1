@@ -4,18 +4,17 @@ import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
+import { id as instantId } from "@instantdb/react";
+import { db } from "@/lib/instant/client";
 import { useLanguage } from "@/context/LanguageContext";
 import { useUser } from "@/hooks/useUser";
-import { createClient } from "@/lib/supabase/client";
 import type { Address } from "@/types";
 
 export default function AddressesPage() {
   const { lang, isRTL } = useLanguage();
-  const { user, loading } = useUser();
+  const { user, profile, loading } = useUser();
   const router = useRouter();
-  const supabase = useMemo(() => createClient(), []);
 
-  const [addresses, setAddresses] = useState<Address[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -26,28 +25,53 @@ export default function AddressesPage() {
     if (!loading && !user) router.push("/auth/login?next=/account/addresses");
   }, [user, loading, router]);
 
-  useEffect(() => {
-    async function load() {
-      if (!user) return;
-      const { data } = await supabase.from("addresses").select("*").eq("user_id", user.id).order("is_default", { ascending: false });
-      setAddresses((data ?? []) as Address[]);
-    }
-    if (user) load();
-  // supabase is stable (useMemo), only re-fetch when user changes
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+  const { data: addressesData } = db.useQuery(
+    user
+      ? { addresses: { $: { where: { "$user.id": user.id }, order: { is_default: "desc" } } } }
+      : null
+  );
+  const addresses = useMemo(
+    () => (addressesData?.addresses as unknown as Address[]) ?? [],
+    [addressesData]
+  );
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
-    if (!user || !form.street || !form.city) return;
+    if (!user || !profile || !form.street || !form.city) return;
     setSaving(true);
 
-    if (editingId) {
-      const { data } = await supabase.from("addresses").update({ ...form }).eq("id", editingId).select().single();
-      if (data) setAddresses((prev) => prev.map((a) => a.id === editingId ? data as Address : a));
-    } else {
-      const { data } = await supabase.from("addresses").insert({ ...form, user_id: user.id, is_default: addresses.length === 0 }).select().single();
-      if (data) setAddresses((prev) => [...prev, data as Address]);
+    try {
+      if (editingId) {
+        await db.transact(
+          db.tx.addresses[editingId].update({
+            label: form.label,
+            street: form.street,
+            city: form.city,
+            area: form.area,
+            building: form.building,
+            floor: form.floor,
+            notes: form.notes,
+          })
+        );
+      } else {
+        await db.transact(
+          db.tx.addresses[instantId()]
+            .update({
+              label: form.label,
+              street: form.street,
+              city: form.city,
+              area: form.area,
+              building: form.building,
+              floor: form.floor,
+              notes: form.notes,
+              is_default: addresses.length === 0,
+              created_at: new Date().toISOString(),
+            })
+            .link({ profile: profile.id, $user: user.id })
+        );
+      }
+    } catch (err) {
+      console.warn("Failed to save address:", err);
     }
 
     setForm({ label: "Home", street: "", city: "", area: "", building: "", floor: "", notes: "" });
@@ -56,16 +80,19 @@ export default function AddressesPage() {
     setSaving(false);
   }
 
-  async function handleDelete(id: string) {
-    await supabase.from("addresses").delete().eq("id", id);
-    setAddresses((prev) => prev.filter((a) => a.id !== id));
+  async function handleDelete(addressId: string) {
+    await db.transact(db.tx.addresses[addressId].delete());
   }
 
-  async function setDefault(id: string) {
+  async function setDefault(addressId: string) {
     if (!user) return;
-    await supabase.from("addresses").update({ is_default: false }).eq("user_id", user.id);
-    await supabase.from("addresses").update({ is_default: true }).eq("id", id);
-    setAddresses((prev) => prev.map((a) => ({ ...a, is_default: a.id === id })));
+    // One atomic transact batching every `is_default` flip together, instead
+    // of today's sequential "clear all, then set one" Supabase calls.
+    await db.transact(
+      addresses.map((a) =>
+        db.tx.addresses[a.id].update({ is_default: a.id === addressId })
+      )
+    );
   }
 
   function startEdit(addr: Address) {

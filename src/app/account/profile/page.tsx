@@ -1,17 +1,16 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLanguage } from "@/context/LanguageContext";
 import { useUser } from "@/hooks/useUser";
-import { createClient } from "@/lib/supabase/client";
+import { db } from "@/lib/instant/client";
 
 export default function ProfilePage() {
   const { lang, isRTL } = useLanguage();
   const { user, profile, loading } = useUser();
   const router = useRouter();
-  const supabase = useMemo(() => createClient(), []);
 
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
@@ -34,21 +33,19 @@ export default function ProfilePage() {
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
-    if (!user) return;
+    if (!user || !profile) return;
     setSaving(true);
     setError(null);
     setSuccess(false);
 
-    const { error } = await supabase
-      .from("profiles")
-      .update({ full_name: fullName, phone })
-      .eq("id", user.id);
-
-    if (error) {
-      setError(error.message);
-    } else {
+    try {
+      await db.transact(
+        db.tx.profiles[profile.id].update({ full_name: fullName, phone, updated_at: new Date().toISOString() })
+      );
       setSuccess(true);
       setTimeout(() => setSuccess(false), 2000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save changes");
     }
     setSaving(false);
   }

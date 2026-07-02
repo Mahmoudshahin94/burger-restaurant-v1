@@ -4,8 +4,9 @@ import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLanguage } from "@/context/LanguageContext";
+import { db } from "@/lib/instant/client";
 import type { Profile } from "@/types";
-import type { User } from "@supabase/supabase-js";
+import type { User } from "@instantdb/react";
 
 interface UserMenuProps {
   profile: Profile | null;
@@ -133,15 +134,18 @@ export default function UserMenu({ profile, user, loading }: UserMenuProps) {
             </div>
 
             <div className="border-t border-border py-1.5">
-              <a
-                href="/auth/signout"
+              <button
+                onClick={() => {
+                  setOpen(false);
+                  db.auth.signOut();
+                }}
                 className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors"
               >
                 <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                 </svg>
                 {lang === "ar" ? "تسجيل الخروج" : "Sign out"}
-              </a>
+              </button>
             </div>
           </motion.div>
         )}

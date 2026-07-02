@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import AdminLayout from "@/components/admin/AdminLayout";
-import { createClient } from "@/lib/supabase/client";
+import { db } from "@/lib/instant/client";
 import OrderStatusBadge from "@/components/orders/OrderStatusBadge";
-import type { Order, OrderStatus, DeliveryAddress } from "@/types";
+import type { OrderStatus, DeliveryAddress } from "@/types";
 
 const ALL_STATUSES: OrderStatus[] = ["pending", "confirmed", "out_for_delivery", "delivered", "cancelled"];
 
@@ -18,48 +18,35 @@ const STATUS_LABELS: Record<OrderStatus, string> = {
 };
 
 export default function AdminOrdersPage() {
-  const supabase = useMemo(() => createClient(), []);
-  const [orders, setOrders] = useState<(Order & { profiles?: { full_name: string | null; phone: string | null; email: string | null } | null })[]>([]);
-  const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<OrderStatus | "all">("all");
   const [search, setSearch] = useState("");
 
-  const fetchOrders = useCallback(async () => {
-    setLoading(true);
-    let query = supabase
-      .from("orders")
-      .select(`*, order_items(*), profiles(full_name, phone, email)`)
-      .order("created_at", { ascending: false });
+  const { data, isLoading: loading } = db.useQuery({
+    orders: {
+      $: { order: { created_at: "desc" } },
+      order_items: {},
+      profile: {},
+    },
+  });
 
-    if (statusFilter !== "all") {
-      query = query.eq("status", statusFilter);
-    }
+  const allOrders = data?.orders ?? [];
 
-    const { data, error } = await query;
-    if (!error && data) {
-      setOrders(data as typeof orders);
-    }
-    setLoading(false);
-  }, [statusFilter]); // supabase is stable (useMemo)
-
-  useEffect(() => {
-    fetchOrders();
-  }, [fetchOrders]);
+  const orders = statusFilter === "all" ? allOrders : allOrders.filter((o) => o.status === statusFilter);
 
   const filteredOrders = orders.filter((order) => {
     if (!search.trim()) return true;
     const q = search.toLowerCase();
-    const customerName = order.profiles?.full_name?.toLowerCase() ?? "";
+    const customerName = order.profile?.full_name?.toLowerCase() ?? "";
     return (
       String(order.order_number).includes(q) ||
       customerName.includes(q) ||
-      order.profiles?.phone?.includes(q) ||
-      order.profiles?.email?.toLowerCase().includes(q) ||
+      order.profile?.phone?.includes(q) ||
+      order.profile?.email?.toLowerCase().includes(q) ||
       (order.delivery_address as DeliveryAddress | null)?.city?.toLowerCase().includes(q)
     );
   });
 
-  const statusCounts = orders.reduce((acc, o) => {
+  const statusCounts = allOrders.reduce((acc, o) => {
     const s = o.status ?? "pending";
     acc[s as OrderStatus] = (acc[s as OrderStatus] ?? 0) + 1;
     return acc;
@@ -148,9 +135,9 @@ export default function AdminOrdersPage() {
                           {addr?.city && <p className="text-xs text-gray-400">{addr.city}</p>}
                         </td>
                         <td className="px-4 py-3">
-                          <p className="text-sm font-medium text-gray-800">{order.profiles?.full_name ?? "Guest"}</p>
-                          {order.profiles?.email && <p className="text-xs text-gray-400">{order.profiles.email}</p>}
-                          {order.profiles?.phone && <p className="text-xs text-gray-400">{order.profiles.phone}</p>}
+                          <p className="text-sm font-medium text-gray-800">{order.profile?.full_name ?? "Guest"}</p>
+                          {order.profile?.email && <p className="text-xs text-gray-400">{order.profile.email}</p>}
+                          {order.profile?.phone && <p className="text-xs text-gray-400">{order.profile.phone}</p>}
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-600">{itemCount} items</td>
                         <td className="px-4 py-3">

@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useMemo, useRef, useEffect, Component, ReactNode } from "react";
+import { useState, useMemo, useRef, Component, ReactNode } from "react";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
-import { createPublicClient } from "@/lib/supabase/client";
+import { db } from "@/lib/instant/client";
 
 /* ── Lightweight error boundary so banner/animation crashes don't kill the page ── */
 class SectionErrorBoundary extends Component<
@@ -71,62 +71,64 @@ export default function MenuPage() {
   const [search, setSearch] = useState("");
   const sectionRefs = useRef<Map<string, HTMLElement>>(new Map());
 
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [allItems, setAllItems] = useState<MenuItem[]>([]);
-  const [allItemImages, setAllItemImages] = useState<ItemImage[]>([]);
-  const [banners, setBanners] = useState<Banner[]>([]);
-  const [settings, setSettings] = useState<Array<{ key: string; value: string | null }>>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data, isLoading, error } = db.useQuery({
+    categories: {},
+    products: { images: {}, category: {} },
+    banners: {},
+    settings: {},
+  });
 
-  const supabase = useMemo(() => createPublicClient(), []);
+  const categories: Category[] = useMemo(
+    () => (data?.categories ?? []) as Category[],
+    [data]
+  );
 
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        const [catRes, itemsRes, imagesRes, bannersRes, settingsRes] = await Promise.all([
-          supabase.from("categories").select("*").order("sort_order"),
-          supabase.from("products").select("*").order("sort_order"),
-          supabase.from("product_images").select("*").order("sort_order"),
-          supabase.from("banners").select("*").order("sort_order"),
-          supabase.from("settings").select("*"),
-        ]);
+  const allItems: MenuItem[] = useMemo(
+    () =>
+      (data?.products ?? []).map((p) => ({
+        id: p.id,
+        name_en: p.name_en,
+        name_ar: p.name_ar,
+        description_en: p.description_en ?? null,
+        description_ar: p.description_ar ?? null,
+        price_small: p.price_small ?? null,
+        price_large: p.price_large ?? null,
+        image: p.image ?? null,
+        available: p.available,
+        sort_order: p.sort_order ?? null,
+        order: p.sort_order ?? undefined,
+        category_id: p.category?.id ?? null,
+      })),
+    [data]
+  );
 
-        if (catRes.error) throw catRes.error;
-        if (itemsRes.error) throw itemsRes.error;
+  const allItemImages: ItemImage[] = useMemo(
+    () =>
+      (data?.products ?? []).flatMap((p) =>
+        (p.images ?? []).map((img) => ({
+          id: img.id,
+          product_id: p.id,
+          item_id: p.id,
+          image: img.image_url,
+          image_url: img.image_url,
+          is_primary: img.is_primary,
+          sort_order: img.sort_order,
+          order: img.sort_order,
+        }))
+      ),
+    [data]
+  );
 
-        setCategories((catRes.data ?? []) as Category[]);
-        setAllItems(
-          (itemsRes.data ?? []).map((p) => ({
-            ...p,
-            order: p.sort_order,
-            category_id: p.category_id,
-          })) as MenuItem[]
-        );
-        setAllItemImages(
-          (imagesRes.data ?? []).map((img) => ({
-            id: img.id,
-            product_id: img.product_id,
-            item_id: img.product_id ?? undefined,
-            image: img.image_url,
-            image_url: img.image_url,
-            is_primary: img.is_primary,
-            sort_order: img.sort_order,
-            order: img.sort_order,
-          })) as ItemImage[]
-        );
-        setBanners((bannersRes.data ?? []) as Banner[]);
-        setSettings(settingsRes.data ?? []);
-      } catch (err) {
-        setError(String(err));
-      } finally {
-        setIsLoading(false);
-      }
-    }
+  const banners: Banner[] = useMemo(
+    () => (data?.banners ?? []) as Banner[],
+    [data]
+  );
 
-    fetchData();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const settings: Array<{ key: string; value: string | null }> = useMemo(
+    () =>
+      (data?.settings ?? []).map((s) => ({ key: s.key, value: s.value ?? null })),
+    [data]
+  );
 
   const shopName = useMemo(() => {
     const s = settings.find((s) => s.key === "shop_name");
@@ -218,7 +220,7 @@ export default function MenuPage() {
         <div className="text-center bg-surface rounded-3xl p-8 shadow-card max-w-sm w-full border border-border">
           <div className="text-5xl mb-4">⚠️</div>
           <p className="text-primary font-semibold text-lg mb-1">{t("error")}</p>
-          <p className="text-ink-3 text-xs font-mono break-all">{String(error)}</p>
+          <p className="text-ink-3 text-xs font-mono break-all">{error.message}</p>
         </div>
       </div>
     );

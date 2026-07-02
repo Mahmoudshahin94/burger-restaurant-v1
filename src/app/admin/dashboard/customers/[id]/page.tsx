@@ -1,34 +1,30 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import AdminLayout from "@/components/admin/AdminLayout";
-import { createClient } from "@/lib/supabase/client";
+import { db } from "@/lib/instant/client";
 import OrderStatusBadge from "@/components/orders/OrderStatusBadge";
-import type { Order, OrderStatus } from "@/types";
+import type { OrderStatus } from "@/types";
 
 export default function CustomerDetailPage({ params }: { params: { id: string } }) {
-  const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
-  const [profile, setProfile] = useState<{ id: string; full_name: string | null; phone: string | null; created_at: string | null; role: string | null } | null>(null);
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    async function fetchData() {
-      const [profileRes, ordersRes] = await Promise.all([
-        supabase.from("profiles").select("*").eq("id", params.id).single(),
-        supabase.from("orders").select("*, order_items(*)").eq("user_id", params.id).order("created_at", { ascending: false }),
-      ]);
+  const { data, isLoading: loading } = db.useQuery({
+    profiles: {
+      $: { where: { id: params.id } },
+      orders: { order_items: {} },
+    },
+  });
 
-      if (profileRes.data) setProfile(profileRes.data);
-      if (ordersRes.data) setOrders(ordersRes.data as Order[]);
-      setLoading(false);
-    }
-    fetchData();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [params.id]);
+  const profile = data?.profiles?.[0] ?? null;
+
+  const orders = useMemo(() => {
+    return [...(profile?.orders ?? [])].sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+  }, [profile]);
 
   if (loading) {
     return (

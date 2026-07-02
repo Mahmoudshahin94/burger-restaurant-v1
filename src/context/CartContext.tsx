@@ -1,7 +1,8 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from "react";
-import { createClient } from "@/lib/supabase/client";
+import { id } from "@instantdb/react";
+import { db } from "@/lib/instant/client";
 import type { MenuItem } from "@/types";
 
 export interface LocalCartItem {
@@ -59,9 +60,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     }
   });
   const [isOpen, setIsOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
   const [cartLoaded, setCartLoaded] = useState(false);
-  const mounted = useRef(true);
 
   // Mark cart as loaded after mount
   useEffect(() => {
@@ -142,98 +141,117 @@ export function CartProvider({ children }: { children: ReactNode }) {
     setIsOpen(false);
   }, []);
 
-  // Sync local cart with Supabase when user logs in
-  const syncWithServer = useCallback(async () => {
-    if (!mounted.current) return;
-    setLoading(true);
-    
-    try {
-      const supabase = createClient();
-      const { data: { session } } = await supabase.auth.getSession();
-      const user = session?.user ?? null;
-      if (!user || !mounted.current) {
-        setLoading(false);
-        return;
-      }
+  // ── Server sync (InstantDB) ─────────────────────────────────────────────
+  // Guest-cart localStorage logic above is unchanged. Below, `db.useAuth()`
+  // replaces `supabase.auth.onAuthStateChange`, and `db.useQuery`/`db.transact`
+  // replace the old Supabase `cart_items` reads/writes.
+  const { user } = db.useAuth();
 
-      // Add timeout to prevent hanging
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000);
+  const { data: profileData } = db.useQuery(
+    user ? { profiles: { $: { where: { "$user.id": user.id } } } } : null
+  );
+  const profileId = profileData?.profiles?.[0]?.id;
 
-      try {
-        const { data: serverItems } = await supabase
-          .from("cart_items")
-          .select("*, products(*)")
-          .eq("user_id", user.id)
-          .abortSignal(controller.signal);
+  const { data: cartData, isLoading: cartQueryLoading } = db.useQuery(
+    user ? { cartItems: { $: { where: { "$user.id": user.id } }, product: {} } } : null
+  );
 
-        clearTimeout(timeoutId);
-        if (!mounted.current) return;
+  const prevUserIdRef = useRef<string | null>(null);
+  const syncedUserIdRef = useRef<string | null>(null);
 
-        const validServerItems = (serverItems ?? []).filter((si) => si.products != null);
-        if (validServerItems.length > 0) {
-          const serverCart: LocalCartItem[] = validServerItems.map((si) => ({
-            id: si.id,
-            product_id: si.product_id,
-            size: si.size as "small" | "large" | null,
-            quantity: si.quantity ?? 1,
-            product: si.products as MenuItem,
-          }));
+  // Merges the server's cart (for the signed-in user) into the local cart,
+  // taking the max quantity per product+size — same rule the old Supabase
+  // merge used. Any local-only lines (or quantity bumps) are then persisted
+  // back to InstantDB in a single atomic `transact` call.
+  const mergeServerCart = useCallback(() => {
+    const serverRows = (cartData?.cartItems ?? []).filter((row) => row.product != null);
 
-          const mergedMap = new Map<string, LocalCartItem>();
-          serverCart.forEach((item) => {
-            mergedMap.set(`${item.product_id}-${item.size}`, item);
-          });
+    const serverKeyToId = new Map<string, string>();
+    const serverKeyToQuantity = new Map<string, number>();
+    const mergedMap = new Map<string, LocalCartItem>();
 
-          const localItems = loadLocalCart();
-          localItems.forEach((localItem) => {
-            const key = `${localItem.product_id}-${localItem.size}`;
-            if (mergedMap.has(key)) {
-              const existing = mergedMap.get(key)!;
-              mergedMap.set(key, { ...existing, quantity: Math.max(existing.quantity, localItem.quantity) });
-            } else {
-              mergedMap.set(key, localItem);
-            }
-          });
+    serverRows.forEach((row) => {
+      const key = `${row.product!.id}-${row.size ?? null}`;
+      serverKeyToId.set(key, row.id);
+      serverKeyToQuantity.set(key, row.quantity ?? 1);
+      mergedMap.set(key, {
+        id: row.id,
+        product_id: row.product!.id,
+        size: (row.size as "small" | "large" | null) ?? null,
+        quantity: row.quantity ?? 1,
+        product: row.product as unknown as MenuItem,
+      });
+    });
 
-          if (mounted.current) {
-            setItems(Array.from(mergedMap.values()));
-          }
-        }
-      } catch (err) {
-        clearTimeout(timeoutId);
-        console.warn("Cart sync failed or timed out:", err);
-      }
-    } catch (err) {
-      console.warn("Cart sync session check failed:", err);
-    } finally {
-      if (mounted.current) {
-        setLoading(false);
-      }
-    }
-  }, []);
-
-  // Listen for auth changes to sync cart
-  useEffect(() => {
-    mounted.current = true;
-    const supabase = createClient();
-    
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (!mounted.current) return;
-      
-      if (event === "INITIAL_SESSION" || event === "SIGNED_IN") {
-        syncWithServer();
-      } else if (event === "SIGNED_OUT") {
-        clearCart();
+    const localItems = loadLocalCart();
+    localItems.forEach((localItem) => {
+      const key = `${localItem.product_id}-${localItem.size}`;
+      const existing = mergedMap.get(key);
+      if (existing) {
+        mergedMap.set(key, { ...existing, quantity: Math.max(existing.quantity, localItem.quantity) });
+      } else {
+        mergedMap.set(key, localItem);
       }
     });
-    
-    return () => {
-      mounted.current = false;
-      subscription.unsubscribe();
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+
+    const merged = Array.from(mergedMap.values());
+    if (merged.length > 0) {
+      setItems(merged);
+    }
+
+    if (user && profileId) {
+      const txs = merged.flatMap((item) => {
+        const key = `${item.product_id}-${item.size}`;
+        const serverId = serverKeyToId.get(key);
+        if (serverId) {
+          // Only write back if the merge actually bumped the quantity —
+          // skip no-op updates for rows that already match the server.
+          if (serverKeyToQuantity.get(key) === item.quantity) return [];
+          return [db.tx.cartItems[serverId].update({ quantity: item.quantity })];
+        }
+        return [
+          db.tx.cartItems[id()]
+            .update({
+              size: item.size,
+              quantity: item.quantity,
+              created_at: new Date().toISOString(),
+            })
+            .link({ product: item.product_id, profile: profileId, $user: user.id }),
+        ];
+      });
+      if (txs.length > 0) {
+        db.transact(txs).catch((err) => console.warn("Cart persist failed:", err));
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cartData, user, profileId]);
+
+  const syncWithServer = useCallback(async () => {
+    if (!user || cartQueryLoading) return;
+    mergeServerCart();
+  }, [user, cartQueryLoading, mergeServerCart]);
+
+  // Mirrors the old sign-in/sign-out auth listener: merge once per sign-in,
+  // and clear the cart on sign-out (guards against a shared-device carryover).
+  useEffect(() => {
+    if (!user) {
+      if (prevUserIdRef.current) {
+        clearCart();
+      }
+      prevUserIdRef.current = null;
+      syncedUserIdRef.current = null;
+      return;
+    }
+
+    prevUserIdRef.current = user.id;
+
+    if (cartQueryLoading) return;
+    if (syncedUserIdRef.current === user.id) return;
+
+    syncedUserIdRef.current = user.id;
+    mergeServerCart();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, cartQueryLoading]);
 
   return (
     <CartContext.Provider value={{
@@ -241,7 +259,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       totalItems,
       subtotal,
       isOpen,
-      loading,
+      loading: !!user && cartQueryLoading,
       cartLoaded,
       openCart,
       closeCart,

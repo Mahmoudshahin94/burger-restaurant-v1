@@ -1,9 +1,9 @@
 "use client";
 
-import { Suspense, useState, useEffect, useMemo } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import { useRouter, useSearchParams } from "next/navigation";
+import { db } from "@/lib/instant/client";
 import { useLanguage } from "@/context/LanguageContext";
 
 function GoogleIcon() {
@@ -19,80 +19,58 @@ function GoogleIcon() {
 
 function LoginContent() {
   const { lang, isRTL } = useLanguage();
+  const router = useRouter();
   const searchParams = useSearchParams();
-  const supabase = useMemo(() => createClient(), []);
   const next = searchParams.get("next") || "/";
-  const errorParam = searchParams.get("error");
 
+  const { user } = db.useAuth();
+  const [step, setStep] = useState<"email" | "code">("email");
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (errorParam === "auth_failed") {
-      setError(lang === "ar" ? "فشل تسجيل الدخول، يرجى المحاولة مجدداً" : "Authentication failed, please try again");
+    if (user) {
+      router.replace(next);
     }
-  }, [errorParam, lang]);
+  }, [user, next, router]);
 
-  async function handleEmailLogin(e: React.FormEvent) {
+  async function handleSendCode(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError(null);
-
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-
-      if (error) {
-        if (error.message === "Email not confirmed") {
-          setError(
-            lang === "ar"
-              ? "لم يتم تأكيد بريدك الإلكتروني بعد. تحقق من صندوق الوارد وانقر على رابط التأكيد."
-              : "Your email is not confirmed yet. Please check your inbox and click the confirmation link."
-          );
-        } else {
-          setError(lang === "ar" ? "البريد الإلكتروني أو كلمة المرور غير صحيحة" : "Invalid email or password");
-        }
-        setLoading(false);
-        return;
-      }
-
-      if (!data.session) {
-        setError(lang === "ar" ? "فشل تسجيل الدخول" : "Login failed");
-        setLoading(false);
-        return;
-      }
-
-      // Wait for auth state to be fully committed before redirect
-      // This ensures cookies are properly set
-      await new Promise((resolve) => setTimeout(resolve, 100));
-      
-      // Hard redirect to ensure cookies are sent with the new request
-      window.location.href = next;
-    } catch (err) {
-      console.error("Login error:", err);
-      setError(lang === "ar" ? "حدث خطأ أثناء تسجيل الدخول" : "An error occurred during login");
+      await db.auth.sendMagicCode({ email });
+      setStep("code");
+    } catch {
+      setError(lang === "ar" ? "تعذر إرسال رمز الدخول" : "Couldn't send the login code");
+    } finally {
       setLoading(false);
     }
   }
 
-  async function handleGoogleLogin() {
-    setGoogleLoading(true);
+  async function handleVerifyCode(e: React.FormEvent) {
+    e.preventDefault();
+    setLoading(true);
     setError(null);
-
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`,
-      },
-    });
-
-    if (error) {
-      setError(lang === "ar" ? "فشل تسجيل الدخول بجوجل" : "Google sign in failed");
-      setGoogleLoading(false);
+    try {
+      await db.auth.signInWithMagicCode({ email, code });
+      // Redirect happens via the useEffect above once db.useAuth() reports the user.
+    } catch {
+      setError(lang === "ar" ? "الرمز غير صحيح أو منتهي الصلاحية" : "Invalid or expired code");
+      setLoading(false);
     }
   }
+
+  const googleUrl =
+    typeof window !== "undefined"
+      ? db.auth.createAuthorizationURL({
+          clientName:
+            process.env.NEXT_PUBLIC_INSTANT_GOOGLE_CLIENT_NAME || "google-web",
+          redirectURL: window.location.href,
+        })
+      : "#";
 
   return (
     <div className="min-h-screen bg-bg flex items-center justify-center p-4" dir={isRTL ? "rtl" : "ltr"}>
@@ -119,84 +97,103 @@ function LoginContent() {
               {error}
             </div>
           )}
-          {/* Google */}
-          <button
-            onClick={handleGoogleLogin}
-            disabled={googleLoading || loading}
-            className="w-full flex items-center justify-center gap-3 py-3 px-4 rounded-2xl border-2 border-border bg-surface hover:border-ink-3 transition-all font-semibold text-ink text-sm disabled:opacity-50"
-          >
-            {googleLoading ? (
-              <span className="w-5 h-5 border-2 border-ink/30 border-t-ink rounded-full animate-spin" />
-            ) : (
-              <GoogleIcon />
-            )}
-            {lang === "ar" ? "تسجيل الدخول بجوجل" : "Continue with Google"}
-          </button>
 
-          <div className="flex items-center gap-3">
-            <div className="flex-1 h-px bg-border" />
-            <span className="text-xs text-ink-3 font-medium">{lang === "ar" ? "أو" : "or"}</span>
-            <div className="flex-1 h-px bg-border" />
-          </div>
+          {step === "email" && (
+            <>
+              {/* Google */}
+              <a
+                href={googleUrl}
+                className="w-full flex items-center justify-center gap-3 py-3 px-4 rounded-2xl border-2 border-border bg-surface hover:border-ink-3 transition-all font-semibold text-ink text-sm"
+              >
+                <GoogleIcon />
+                {lang === "ar" ? "تسجيل الدخول بجوجل" : "Continue with Google"}
+              </a>
 
-          {/* Email form */}
-          <form onSubmit={handleEmailLogin} className="space-y-3">
-            <div>
-              <label className="block text-xs font-semibold text-ink-2 mb-1.5">
-                {lang === "ar" ? "البريد الإلكتروني" : "Email"}
-              </label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder={lang === "ar" ? "example@email.com" : "example@email.com"}
-                required
-                className="w-full px-4 py-3 rounded-2xl border border-border bg-surface-2 text-ink placeholder-ink-3 text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
-              />
-            </div>
-
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="text-xs font-semibold text-ink-2">
-                  {lang === "ar" ? "كلمة المرور" : "Password"}
-                </label>
-                <Link href="/auth/forgot-password" className="text-xs text-primary hover:underline">
-                  {lang === "ar" ? "نسيت كلمة المرور؟" : "Forgot password?"}
-                </Link>
+              <div className="flex items-center gap-3">
+                <div className="flex-1 h-px bg-border" />
+                <span className="text-xs text-ink-3 font-medium">{lang === "ar" ? "أو" : "or"}</span>
+                <div className="flex-1 h-px bg-border" />
               </div>
+
+              {/* Email -> magic code */}
+              <form onSubmit={handleSendCode} className="space-y-3">
+                <div>
+                  <label className="block text-xs font-semibold text-ink-2 mb-1.5">
+                    {lang === "ar" ? "البريد الإلكتروني" : "Email"}
+                  </label>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="example@email.com"
+                    required
+                    className="w-full px-4 py-3 rounded-2xl border border-border bg-surface-2 text-ink placeholder-ink-3 text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full py-3 px-4 rounded-2xl bg-primary text-white font-bold text-sm hover:bg-primary/90 active:scale-[0.99] transition-all disabled:opacity-50 mt-1"
+                >
+                  {loading ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      {lang === "ar" ? "جاري الإرسال..." : "Sending..."}
+                    </span>
+                  ) : lang === "ar" ? (
+                    "إرسال رمز الدخول"
+                  ) : (
+                    "Email me a login code"
+                  )}
+                </button>
+              </form>
+            </>
+          )}
+
+          {step === "code" && (
+            <form onSubmit={handleVerifyCode} className="space-y-3">
+              <p className="text-sm text-ink-2">
+                {lang === "ar"
+                  ? `أدخل الرمز المرسل إلى ${email}`
+                  : `Enter the code we sent to ${email}`}
+              </p>
               <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
+                type="text"
+                inputMode="numeric"
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                placeholder="123456"
                 required
-                minLength={6}
-                className="w-full px-4 py-3 rounded-2xl border border-border bg-surface-2 text-ink placeholder-ink-3 text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+                autoFocus
+                className="w-full px-4 py-3 rounded-2xl border border-border bg-surface-2 text-ink placeholder-ink-3 text-sm text-center tracking-[0.4em] focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
               />
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading || googleLoading}
-              className="w-full py-3 px-4 rounded-2xl bg-primary text-white font-bold text-sm hover:bg-primary/90 active:scale-[0.99] transition-all disabled:opacity-50 mt-1"
-            >
-              {loading ? (
-                <span className="flex items-center justify-center gap-2">
-                  <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  {lang === "ar" ? "جاري الدخول..." : "Signing in..."}
-                </span>
-              ) : (
-                lang === "ar" ? "تسجيل الدخول" : "Sign in"
-              )}
-            </button>
-          </form>
-
-          <p className="text-center text-sm text-ink-2 pt-1">
-            {lang === "ar" ? "ليس لديك حساب؟" : "Don't have an account?"}{" "}
-            <Link href={`/auth/signup${next !== "/" ? `?next=${encodeURIComponent(next)}` : ""}`} className="text-primary font-semibold hover:underline">
-              {lang === "ar" ? "إنشاء حساب" : "Sign up"}
-            </Link>
-          </p>
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-3 px-4 rounded-2xl bg-primary text-white font-bold text-sm hover:bg-primary/90 active:scale-[0.99] transition-all disabled:opacity-50"
+              >
+                {loading
+                  ? lang === "ar"
+                    ? "جاري التحقق..."
+                    : "Verifying..."
+                  : lang === "ar"
+                    ? "تأكيد"
+                    : "Verify code"}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setStep("email");
+                  setCode("");
+                  setError(null);
+                }}
+                className="w-full text-center text-sm text-ink-3 hover:text-ink transition-colors"
+              >
+                {lang === "ar" ? "استخدام بريد إلكتروني آخر" : "Use a different email"}
+              </button>
+            </form>
+          )}
         </div>
 
         {/* Back to menu */}
@@ -212,7 +209,13 @@ function LoginContent() {
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-bg flex items-center justify-center"><div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin" /></div>}>
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-bg flex items-center justify-center">
+          <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+        </div>
+      }
+    >
       <LoginContent />
     </Suspense>
   );

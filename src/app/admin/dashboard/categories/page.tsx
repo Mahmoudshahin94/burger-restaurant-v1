@@ -1,43 +1,40 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import Image from "next/image";
 import AdminLayout from "@/components/admin/AdminLayout";
 import Modal from "@/components/admin/Modal";
 import CategoryForm from "@/components/admin/CategoryForm";
-import { createClient } from "@/lib/supabase/client";
+import { db } from "@/lib/instant/client";
+import { id } from "@instantdb/react";
 import type { Category } from "@/types";
 
 export default function CategoriesPage() {
-  const supabase = useMemo(() => createClient(), []);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { data, isLoading } = db.useQuery({ categories: {} });
   const [showAdd, setShowAdd] = useState(false);
   const [editCategory, setEditCategory] = useState<Category | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  async function fetchCategories() {
-    const { data } = await supabase.from("categories").select("*").order("sort_order");
-    setCategories(
-      (data ?? []).map((c) => ({ ...c, order: c.sort_order ?? 0 })) as Category[]
-    );
-    setIsLoading(false);
-  }
-
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { fetchCategories(); }, []);
+  const categories: Category[] = useMemo(
+    () =>
+      ((data?.categories ?? []) as Category[])
+        .slice()
+        .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)),
+    [data]
+  );
 
   const handleAdd = async (formData: { name_en: string; name_ar: string; icon?: string; image?: string; order: number; active: boolean }) => {
-    const insertData: { name_en: string; name_ar: string; icon: string; sort_order: number; active: boolean; image?: string } = {
+    const newId = id();
+    const updateData: { name_en: string; name_ar: string; icon: string; sort_order: number; active: boolean; created_at: string; image?: string } = {
       name_en: formData.name_en,
       name_ar: formData.name_ar,
       icon: formData.icon || "",
       sort_order: formData.order,
       active: formData.active,
+      created_at: new Date().toISOString(),
     };
-    if (formData.image) insertData.image = formData.image;
-    await supabase.from("categories").insert(insertData);
-    await fetchCategories();
+    if (formData.image) updateData.image = formData.image;
+    await db.transact(db.tx.categories[newId].update(updateData));
     setShowAdd(false);
   };
 
@@ -51,22 +48,22 @@ export default function CategoriesPage() {
       active: formData.active,
     };
     if (formData.image) updateData.image = formData.image;
-    await supabase.from("categories").update(updateData).eq("id", editCategory.id);
-    await fetchCategories();
+    await db.transact(db.tx.categories[editCategory.id].update(updateData));
     setEditCategory(null);
   };
 
   const handleDelete = async (catId: string) => {
     if (!confirm("Delete this category? Items in this category will lose their category assignment.")) return;
     setDeletingId(catId);
-    await supabase.from("categories").delete().eq("id", catId);
-    setCategories((prev) => prev.filter((c) => c.id !== catId));
-    setDeletingId(null);
+    try {
+      await db.transact(db.tx.categories[catId].delete());
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   const handleToggleActive = async (cat: Category) => {
-    await supabase.from("categories").update({ active: !cat.active }).eq("id", cat.id);
-    setCategories((prev) => prev.map((c) => c.id === cat.id ? { ...c, active: !cat.active } : c));
+    await db.transact(db.tx.categories[cat.id].update({ active: !cat.active }));
   };
 
   return (
